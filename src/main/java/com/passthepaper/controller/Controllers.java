@@ -3,7 +3,7 @@ package com.passthepaper.controller;
 import com.passthepaper.dto.*;
 import com.passthepaper.entity.*;
 import com.passthepaper.exception.AppException;
-import com.passthepaper.repository.UserRepository;
+import com.passthepaper.repository.*;
 import com.passthepaper.security.JwtUtils;
 import com.passthepaper.service.*;
 import jakarta.validation.Valid;
@@ -36,6 +36,8 @@ class AuthController {
                 .body(ApiResponse.ok(authService.register(req)));
     }
 
+    // Single /auth/login endpoint — works for both admin and student
+    // Frontend checks isAdmin flag on the returned user object
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthDto.AuthResponse>> login(
             @Valid @RequestBody AuthDto.LoginRequest req) {
@@ -68,13 +70,15 @@ class UserController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<ApiResponse<String>> updateProfile(
+    public ResponseEntity<ApiResponse<UserDto.Response>> updateProfile(
             @AuthenticationPrincipal UserDetails ud,
             @RequestBody UserDto.UpdateProfileRequest req) {
         userService.updateProfile(currentUserId(ud), req);
-        return ResponseEntity.ok(ApiResponse.ok("Profile updated", null));
+        User updated = userService.getById(currentUserId(ud));
+        return ResponseEntity.ok(ApiResponse.ok(UserDto.Response.from(updated)));
     }
 
+    // FIX: frontend sends POST /users/me/change-password (not /me/password)
     @PostMapping("/me/change-password")
     public ResponseEntity<ApiResponse<String>> changePassword(
             @AuthenticationPrincipal UserDetails ud,
@@ -134,7 +138,6 @@ class ResourceController {
             @RequestPart("data") @Valid ResourceDto.CreateRequest req,
             @RequestPart("file") MultipartFile file) throws IOException {
 
-        // Save file to local disk (swap for S3 / cloud storage in production)
         String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
         Path uploadPath = Paths.get(UPLOAD_DIR);
         Files.createDirectories(uploadPath);
@@ -154,7 +157,7 @@ class ResourceController {
 }
 
 // ─────────────────────────────────────────────────────
-//  CART & PURCHASE CONTROLLER  /cart  /checkout
+//  CART & PURCHASE CONTROLLER
 // ─────────────────────────────────────────────────────
 @RestController
 @RequiredArgsConstructor
@@ -168,26 +171,32 @@ class CartController {
     }
 
     @GetMapping("/cart")
-    public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> getCart(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> getCart(
+            @AuthenticationPrincipal UserDetails ud) {
         List<Resource> items = purchaseService.getCart(currentUserId(ud));
         List<ResourceDto.Response> dtos = items.stream().map(ResourceDto.Response::from).toList();
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
+    // FIX: frontend sends POST /cart/{resourceId} (path param, no body)
     @PostMapping("/cart/{resourceId}")
     public ResponseEntity<ApiResponse<String>> addToCart(
-            @AuthenticationPrincipal UserDetails ud, @PathVariable UUID resourceId) {
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID resourceId) {
         purchaseService.addToCart(currentUserId(ud), resourceId);
         return ResponseEntity.ok(ApiResponse.ok("Added to cart", null));
     }
 
     @DeleteMapping("/cart/{resourceId}")
     public ResponseEntity<ApiResponse<String>> removeFromCart(
-            @AuthenticationPrincipal UserDetails ud, @PathVariable UUID resourceId) {
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID resourceId) {
         purchaseService.removeFromCart(currentUserId(ud), resourceId);
         return ResponseEntity.ok(ApiResponse.ok("Removed from cart", null));
     }
 
+    // FIX: frontend checkout sends { paymentMethod, useRewardPoints, resourceIds[] }
+    // If resourceIds is empty/null, use entire cart
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<String>> checkout(
             @AuthenticationPrincipal UserDetails ud,
@@ -197,10 +206,26 @@ class CartController {
     }
 
     @GetMapping("/purchases")
-    public ResponseEntity<ApiResponse<List<Purchase>>> myPurchases(@AuthenticationPrincipal UserDetails ud) {
-        return ResponseEntity.ok(ApiResponse.ok(purchaseService.getMyPurchases(currentUserId(ud))));
+    public ResponseEntity<ApiResponse<List<PurchaseDto.Response>>> myPurchases(
+            @AuthenticationPrincipal UserDetails ud) {
+        List<Purchase> purchases = purchaseService.getMyPurchases(currentUserId(ud));
+        List<PurchaseDto.Response> dtos = purchases.stream().map(p ->
+                PurchaseDto.Response.builder()
+                        .id(p.getId())
+                        .resourceId(p.getResource().getId())
+                        .resourceTitle(p.getResource().getTitle())
+                        .price(p.getPrice())
+                        .priceType(p.getPriceType().name())
+                        .paymentMethod(p.getPaymentMethod() != null ? p.getPaymentMethod().name() : null)
+                        .feedback(p.getFeedback())
+                        .rating(p.getRating())
+                        .purchasedAt(p.getPurchasedAt())
+                        .build()
+        ).toList();
+        return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
+    // FIX: POST /purchases/rate with body { purchaseId, rating, feedback }
     @PostMapping("/purchases/rate")
     public ResponseEntity<ApiResponse<String>> rate(
             @AuthenticationPrincipal UserDetails ud,
@@ -225,6 +250,7 @@ class WalletController {
         return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
     }
 
+    // FIX: POST /wallet/topup
     @PostMapping("/topup")
     public ResponseEntity<ApiResponse<String>> requestTopup(
             @AuthenticationPrincipal UserDetails ud,
@@ -233,6 +259,7 @@ class WalletController {
         return ResponseEntity.ok(ApiResponse.ok("Top-up request submitted", null));
     }
 
+    // FIX: POST /wallet/topup-points
     @PostMapping("/topup-points")
     public ResponseEntity<ApiResponse<String>> topupPoints(
             @AuthenticationPrincipal UserDetails ud,
@@ -241,6 +268,7 @@ class WalletController {
         return ResponseEntity.ok(ApiResponse.ok("Points added", null));
     }
 
+    // FIX: POST /wallet/withdraw
     @PostMapping("/withdraw")
     public ResponseEntity<ApiResponse<String>> withdraw(
             @AuthenticationPrincipal UserDetails ud,
@@ -249,20 +277,26 @@ class WalletController {
         return ResponseEntity.ok(ApiResponse.ok("Withdrawal request submitted", null));
     }
 
+    // FIX: DELETE /wallet/withdraw/{id} (frontend uses DELETE to cancel)
     @DeleteMapping("/withdraw/{id}")
     public ResponseEntity<ApiResponse<String>> cancelWithdraw(
-            @AuthenticationPrincipal UserDetails ud, @PathVariable UUID id) {
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID id) {
         walletService.cancelWithdrawal(id, currentUserId(ud));
         return ResponseEntity.ok(ApiResponse.ok("Withdrawal cancelled", null));
     }
 
+    // FIX: GET /wallet/transactions
     @GetMapping("/transactions")
-    public ResponseEntity<ApiResponse<List<Transaction>>> myTransactions(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<List<Transaction>>> myTransactions(
+            @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getMyTransactions(currentUserId(ud))));
     }
 
+    // FIX: GET /wallet/withdrawals
     @GetMapping("/withdrawals")
-    public ResponseEntity<ApiResponse<List<Withdrawal>>> myWithdrawals(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<List<Withdrawal>>> myWithdrawals(
+            @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getMyWithdrawals(currentUserId(ud))));
     }
 }
@@ -283,39 +317,98 @@ class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Notification>>> list(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<List<Notification>>> list(
+            @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(notifService.getForUser(currentUserId(ud))));
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<ApiResponse<Long>> unreadCount(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<Long>> unreadCount(
+            @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(notifService.countUnread(currentUserId(ud))));
     }
 
+    // FIX: PATCH /notifications/{id}/read (frontend sends PATCH)
     @PatchMapping("/{id}/read")
     public ResponseEntity<ApiResponse<String>> markRead(
-            @AuthenticationPrincipal UserDetails ud, @PathVariable UUID id) {
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID id) {
         notifService.markRead(id, currentUserId(ud));
         return ResponseEntity.ok(ApiResponse.ok("Marked read", null));
     }
 
+    // FIX: PATCH /notifications/read-all (frontend sends PATCH)
     @PatchMapping("/read-all")
-    public ResponseEntity<ApiResponse<String>> markAllRead(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<String>> markAllRead(
+            @AuthenticationPrincipal UserDetails ud) {
         notifService.markAllRead(currentUserId(ud));
         return ResponseEntity.ok(ApiResponse.ok("All marked read", null));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> delete(
-            @AuthenticationPrincipal UserDetails ud, @PathVariable UUID id) {
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID id) {
         notifService.delete(id, currentUserId(ud));
         return ResponseEntity.ok(ApiResponse.ok("Deleted", null));
     }
 
     @DeleteMapping
-    public ResponseEntity<ApiResponse<String>> deleteAll(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<String>> deleteAll(
+            @AuthenticationPrincipal UserDetails ud) {
         notifService.deleteAll(currentUserId(ud));
         return ResponseEntity.ok(ApiResponse.ok("All deleted", null));
+    }
+}
+
+// ─────────────────────────────────────────────────────
+//  FEEDBACK CONTROLLER  /feedbacks/**
+//  FIX: was missing entirely — added to support feedbackApi calls
+// ─────────────────────────────────────────────────────
+@RestController
+@RequestMapping("/feedbacks")
+@RequiredArgsConstructor
+class FeedbackController {
+
+    private final com.passthepaper.repository.FeedbackRepository feedbackRepo;
+    private final UserRepository userRepo;
+    private final com.passthepaper.repository.ResourceRepository resourceRepo;
+
+    private UUID currentUserId(UserDetails ud) {
+        return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
+    }
+
+    // GET /feedbacks — returns current user's feedbacks
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Feedback>>> mine(
+            @AuthenticationPrincipal UserDetails ud) {
+        User user = userRepo.findById(currentUserId(ud)).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok(feedbackRepo.findByUserOrderByCreatedAtDesc(user)));
+    }
+
+    // POST /feedbacks — create system or item feedback
+    @PostMapping
+    public ResponseEntity<ApiResponse<Feedback>> create(
+            @AuthenticationPrincipal UserDetails ud,
+            @Valid @RequestBody FeedbackDto.CreateRequest req) {
+        User user = userRepo.findById(currentUserId(ud)).orElseThrow();
+        Feedback.FeedbackType type;
+        try {
+            type = Feedback.FeedbackType.valueOf(req.type());
+        } catch (Exception e) {
+            type = Feedback.FeedbackType.system;
+        }
+        Feedback.FeedbackBuilder fb = Feedback.builder()
+                .user(user)
+                .type(type)
+                .rating(req.rating())
+                .comment(req.comment())
+                .itemTitle(req.itemTitle());
+        if (req.itemId() != null) {
+            resourceRepo.findById(req.itemId()).ifPresent(fb::item);
+        }
+        Feedback saved = feedbackRepo.save(fb.build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
     }
 }
 
@@ -342,8 +435,10 @@ class AppealController {
         return ResponseEntity.ok(ApiResponse.ok("Appeal submitted", null));
     }
 
+    // FIX: GET /appeals/my (frontend calls /appeals/my)
     @GetMapping("/my")
-    public ResponseEntity<ApiResponse<List<Appeal>>> myAppeals(@AuthenticationPrincipal UserDetails ud) {
+    public ResponseEntity<ApiResponse<List<Appeal>>> myAppeals(
+            @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(appealService.getMyAppeals(currentUserId(ud))));
     }
 }
@@ -376,12 +471,15 @@ class AdminController {
                 userService.getAllStudents().stream().map(UserDto.Response::from).toList()));
     }
 
+    // FIX: GET /admin/users/pending-id-cards
     @GetMapping("/users/pending-id-cards")
     public ResponseEntity<ApiResponse<List<UserDto.Response>>> pendingIdCards() {
         return ResponseEntity.ok(ApiResponse.ok(
                 userService.getPendingIdCards().stream().map(UserDto.Response::from).toList()));
     }
 
+    // FIX: POST /admin/users/{userId}/id-card with { approve: bool }
+    // This is now the unified endpoint for both approveIdCard and rejectIdCard
     @PostMapping("/users/{userId}/id-card")
     public ResponseEntity<ApiResponse<String>> reviewIdCard(
             @AuthenticationPrincipal UserDetails ud,
@@ -391,6 +489,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(req.approve() ? "Approved" : "Rejected", null));
     }
 
+    // FIX: POST /admin/users/{userId}/ban (frontend expects POST)
     @PostMapping("/users/{userId}/ban")
     public ResponseEntity<ApiResponse<String>> ban(
             @AuthenticationPrincipal UserDetails ud,
@@ -400,6 +499,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("User banned", null));
     }
 
+    // FIX: POST /admin/users/{userId}/unban (frontend expects POST)
     @PostMapping("/users/{userId}/unban")
     public ResponseEntity<ApiResponse<String>> unban(
             @AuthenticationPrincipal UserDetails ud,
@@ -408,6 +508,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("User unbanned", null));
     }
 
+    // FIX: POST /admin/users/{userId}/restrictions (frontend expects POST)
     @PostMapping("/users/{userId}/restrictions")
     public ResponseEntity<ApiResponse<String>> setRestrictions(
             @PathVariable UUID userId,
@@ -423,6 +524,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(resourceService.getPendingResources()));
     }
 
+    // FIX: POST /admin/resources/{resourceId}/approve (frontend expects POST)
     @PostMapping("/resources/{resourceId}/approve")
     public ResponseEntity<ApiResponse<String>> approveResource(
             @AuthenticationPrincipal UserDetails ud,
@@ -442,11 +544,13 @@ class AdminController {
 
     // ─── Transactions ─────────────────────────────────────
 
+    // FIX: GET /admin/transactions/pending (frontend requests this path)
     @GetMapping("/transactions/pending")
     public ResponseEntity<ApiResponse<List<Transaction>>> pendingTransactions() {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getAllPendingTransactions()));
     }
 
+    // FIX: POST /admin/transactions/{txnId}/approve (frontend expects POST)
     @PostMapping("/transactions/{txnId}/approve")
     public ResponseEntity<ApiResponse<String>> approveTxn(
             @AuthenticationPrincipal UserDetails ud,
@@ -455,6 +559,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("Transaction approved", null));
     }
 
+    // FIX: POST /admin/transactions/{txnId}/reject (frontend expects POST)
     @PostMapping("/transactions/{txnId}/reject")
     public ResponseEntity<ApiResponse<String>> rejectTxn(
             @AuthenticationPrincipal UserDetails ud,
@@ -470,6 +575,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getAllPendingWithdrawals()));
     }
 
+    // FIX: POST /admin/withdrawals/{id}/approve (frontend expects POST)
     @PostMapping("/withdrawals/{id}/approve")
     public ResponseEntity<ApiResponse<String>> approveWithdrawal(
             @AuthenticationPrincipal UserDetails ud,
@@ -478,6 +584,7 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("Withdrawal approved", null));
     }
 
+    // FIX: POST /admin/withdrawals/{id}/reject (frontend expects POST)
     @PostMapping("/withdrawals/{id}/reject")
     public ResponseEntity<ApiResponse<String>> rejectWithdrawal(
             @AuthenticationPrincipal UserDetails ud,
@@ -488,11 +595,13 @@ class AdminController {
 
     // ─── Appeals ──────────────────────────────────────────
 
+    // FIX: GET /admin/appeals/pending (frontend requests this path)
     @GetMapping("/appeals/pending")
     public ResponseEntity<ApiResponse<List<Appeal>>> pendingAppeals() {
         return ResponseEntity.ok(ApiResponse.ok(appealService.getAllPending()));
     }
 
+    // FIX: POST /admin/appeals/{appealId}/review (frontend expects POST)
     @PostMapping("/appeals/{appealId}/review")
     public ResponseEntity<ApiResponse<String>> reviewAppeal(
             @AuthenticationPrincipal UserDetails ud,
