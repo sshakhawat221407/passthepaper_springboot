@@ -1,8 +1,0 @@
-{
-  "build": {
-    "cmd": "mvn -DskipTests clean install"
-  },
-  "deploy": {
-    "cmd": "java -Dserver.port=$PORT -jar target/*.jar"
-  }
-}
