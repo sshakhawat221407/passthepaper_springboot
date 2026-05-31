@@ -1,9 +1,6 @@
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 buildCommand = "mvn -DskipTests clean install"
 
 [deploy]
 startCommand = "java -Dserver.port=$PORT -jar target/*.jar"
-
-[build.nixpacks]
-jdkVersion = "21"
