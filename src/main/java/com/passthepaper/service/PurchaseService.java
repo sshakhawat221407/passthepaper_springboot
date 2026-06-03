@@ -22,6 +22,7 @@ public class PurchaseService {
     private final PurchaseRepository purchaseRepo;
     private final TransactionRepository txnRepo;
     private final NotificationService notificationService;
+    private final LogService logService;
 
     // ─── Cart ───────────────────────────────────────────
 
@@ -112,6 +113,12 @@ public class PurchaseService {
         // Clear purchased items from cart
         req.resourceIds().forEach(rid ->
                 resourceRepo.findById(rid).ifPresent(r -> cartRepo.deleteByUserAndResource(user, r)));
+
+        logService.log(Log.LogType.transaction, "PURCHASE_COMPLETED",
+        "User " + user.getName() + " purchased " + resources.size() + " resource(s) via " + pm.name()
+        + ". Total: " + totalBdt + " BDT / " + totalPoints + " pts",
+        user.getId(), user.getName(), null, null,
+        Map.of("resourceCount", resources.size(), "totalBdt", totalBdt, "totalPoints", totalPoints));
     }
 
     // ─── Ratings ────────────────────────────────────────
