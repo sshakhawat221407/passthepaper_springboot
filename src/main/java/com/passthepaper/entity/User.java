@@ -69,10 +69,10 @@ public class User {
     @Column(name = "membership_expiry")
     private Instant membershipExpiry;
 
-    @Column(name = "profile_picture", columnDefinition = "TEXT")
+    @Column(name = "profile_picture", columnDefinition = "MEDIUMTEXT")
     private String profilePicture;
 
-    @Column(name = "id_card_image", columnDefinition = "TEXT")
+    @Column(name = "id_card_image", columnDefinition = "MEDIUMTEXT")
     private String idCardImage;
 
     @Enumerated(EnumType.STRING)
