@@ -20,6 +20,17 @@ public class AppealService {
     private final AppealRepository appealRepo;
     private final UserRepository userRepo;
     private final NotificationService notifService;
+    
+    // ADD this method to AppealService:
+@Transactional
+public void deleteAppeal(UUID appealId, UUID userId) {
+    Appeal appeal = appealRepo.findById(appealId)
+            .orElseThrow(() -> new AppException("Message not found"));
+    if (!appeal.getUser().getId().equals(userId)) {
+        throw new AppException("Not authorized to delete this message");
+    }
+    appealRepo.deleteById(appealId);
+}
 
 @Transactional
 public Appeal submitAppeal(UUID userId, AppealDto.CreateRequest req) {
