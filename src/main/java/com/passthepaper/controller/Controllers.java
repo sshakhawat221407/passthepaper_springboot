@@ -429,12 +429,12 @@ class AppealController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<String>> submit(
-            @AuthenticationPrincipal UserDetails ud,
-            @Valid @RequestBody AppealDto.CreateRequest req) {
-        appealService.submitAppeal(currentUserId(ud), req);
-        return ResponseEntity.ok(ApiResponse.ok("Appeal submitted", null));
-    }
+public ResponseEntity<ApiResponse<AppealDto.Response>> submit(
+        @AuthenticationPrincipal UserDetails ud,
+        @Valid @RequestBody AppealDto.CreateRequest req) {
+    Appeal saved = appealService.submitAppeal(currentUserId(ud), req);
+    return ResponseEntity.ok(ApiResponse.ok(AppealDto.Response.from(saved)));
+}
 
     // FIX: GET /appeals/my (frontend calls /appeals/my)
     @GetMapping("/my")
