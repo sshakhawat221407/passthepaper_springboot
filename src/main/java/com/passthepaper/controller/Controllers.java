@@ -440,6 +440,13 @@ class AppealController {
     // FIX: GET /appeals/my (frontend calls /appeals/my)
     @GetMapping("/my")
     public ResponseEntity<ApiResponse<List<AppealDto.Response>>> myAppeals(
+        @DeleteMapping("/{appealId}")
+public ResponseEntity<ApiResponse<String>> deleteAppeal(
+        @AuthenticationPrincipal UserDetails ud,
+        @PathVariable UUID appealId) {
+    appealService.deleteAppeal(appealId, currentUserId(ud));
+    return ResponseEntity.ok(ApiResponse.ok("Message deleted", null));
+}
             @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(
             appealService.getMyAppeals(currentUserId(ud))
