@@ -1,6 +1,7 @@
 package com.passthepaper.controller;
 
 import com.passthepaper.dto.*;
+import com.passthepaper.dto.AppealDto;
 import com.passthepaper.entity.*;
 import com.passthepaper.exception.AppException;
 import com.passthepaper.repository.*;
@@ -437,12 +438,13 @@ class AppealController {
 
     // FIX: GET /appeals/my (frontend calls /appeals/my)
     @GetMapping("/my")
-    public ResponseEntity<ApiResponse<List<Appeal>>> myAppeals(
-            @AuthenticationPrincipal UserDetails ud) {
-        return ResponseEntity.ok(ApiResponse.ok(appealService.getMyAppeals(currentUserId(ud))));
-    }
+   public ResponseEntity<ApiResponse<List<AppealDto.Response>>> myAppeals(
+        @AuthenticationPrincipal UserDetails ud) {
+    return ResponseEntity.ok(ApiResponse.ok(
+        appealService.getMyAppeals(currentUserId(ud))
+            .stream().map(AppealDto.Response::from).toList()
+    ));
 }
-
 // ─────────────────────────────────────────────────────
 //  ADMIN CONTROLLER  /admin/**
 // ─────────────────────────────────────────────────────
@@ -596,10 +598,13 @@ class AdminController {
     // ─── Appeals ──────────────────────────────────────────
 
     // FIX: GET /admin/appeals/pending (frontend requests this path)
-    @GetMapping("/appeals/pending")
-    public ResponseEntity<ApiResponse<List<Appeal>>> pendingAppeals() {
-        return ResponseEntity.ok(ApiResponse.ok(appealService.getAllPending()));
-    }
+   @GetMapping("/appeals/pending")
+public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
+    return ResponseEntity.ok(ApiResponse.ok(
+        appealService.getAllPending()
+            .stream().map(AppealDto.Response::from).toList()
+    ));
+}
 
     // FIX: POST /admin/appeals/{appealId}/review (frontend expects POST)
     @PostMapping("/appeals/{appealId}/review")
