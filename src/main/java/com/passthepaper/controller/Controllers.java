@@ -627,10 +627,10 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
 
     // ─── Logs ─────────────────────────────────────────────
 
-    @GetMapping("/logs")
-    public ResponseEntity<ApiResponse<?>> getLogs(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(logService.getLogs(page, size)));
-    }
+@GetMapping("/logs")
+public ResponseEntity<ApiResponse<List<Log>>> getLogs(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "200") int size) {
+    return ResponseEntity.ok(ApiResponse.ok(logService.getLogs(page, size)));
+}
 }
