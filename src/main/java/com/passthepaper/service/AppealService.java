@@ -21,13 +21,13 @@ public class AppealService {
     private final UserRepository userRepo;
     private final NotificationService notifService;
 
-    @Transactional
-    public void submitAppeal(UUID userId, AppealDto.CreateRequest req) {
-        User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
-        appealRepo.save(Appeal.builder()
-                .user(user).userName(user.getName()).userEmail(user.getEmail())
-                .reason(req.reason()).status(Appeal.AppealStatus.pending).build());
-    }
+@Transactional
+public Appeal submitAppeal(UUID userId, AppealDto.CreateRequest req) {
+    User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
+    return appealRepo.save(Appeal.builder()
+            .user(user).userName(user.getName()).userEmail(user.getEmail())
+            .reason(req.reason()).status(Appeal.AppealStatus.pending).build());
+}
 
     @Transactional
     public void reviewAppeal(UUID appealId, AppealDto.ReviewRequest req, UUID adminId) {
