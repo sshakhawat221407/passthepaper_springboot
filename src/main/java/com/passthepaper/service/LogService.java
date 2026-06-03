@@ -1,5 +1,6 @@
 package com.passthepaper.service;
 
+import java.util.List;
 import com.passthepaper.dto.AppealDto;
 import com.passthepaper.entity.*;
 import com.passthepaper.exception.AppException;
@@ -29,8 +30,8 @@ public class LogService {
                 .metadata(metadata).build());
     }
 
-    public org.springframework.data.domain.Page<Log> getLogs(int page, int size) {
-        return logRepo.findAllByOrderByCreatedAtDesc(
-                org.springframework.data.domain.PageRequest.of(page, size));
-    }
+public List<Log> getLogs(int page, int size) {
+    return logRepo.findAllByOrderByCreatedAtDesc(
+            org.springframework.data.domain.PageRequest.of(page, size)).getContent();
+}
 }
