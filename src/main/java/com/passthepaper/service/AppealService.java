@@ -24,7 +24,6 @@ public class AppealService {
     @Transactional
     public void submitAppeal(UUID userId, AppealDto.CreateRequest req) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
-        if (!Boolean.TRUE.equals(user.getIsBanned())) throw new AppException("Account is not banned");
         appealRepo.save(Appeal.builder()
                 .user(user).userName(user.getName()).userEmail(user.getEmail())
                 .reason(req.reason()).status(Appeal.AppealStatus.pending).build());
