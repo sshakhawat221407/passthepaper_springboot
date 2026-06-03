@@ -428,7 +428,6 @@ class AppealController {
         return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
     }
 
-   // AFTER — add the missing } to close AppealController, and fix the submit endpoint too:
     @PostMapping
     public ResponseEntity<ApiResponse<AppealDto.Response>> submit(
             @AuthenticationPrincipal UserDetails ud,
@@ -437,27 +436,24 @@ class AppealController {
         return ResponseEntity.ok(ApiResponse.ok(AppealDto.Response.from(saved)));
     }
 
-    // FIX: GET /appeals/my (frontend calls /appeals/my)
     @GetMapping("/my")
     public ResponseEntity<ApiResponse<List<AppealDto.Response>>> myAppeals(
-        @DeleteMapping("/{appealId}")
-public ResponseEntity<ApiResponse<String>> deleteAppeal(
-        @AuthenticationPrincipal UserDetails ud,
-        @PathVariable UUID appealId) {
-    appealService.deleteAppeal(appealId, currentUserId(ud));
-    return ResponseEntity.ok(ApiResponse.ok("Message deleted", null));
-}
             @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(
             appealService.getMyAppeals(currentUserId(ud))
                 .stream().map(AppealDto.Response::from).toList()
         ));
     }
-}  // ← this closing brace was missing — closes AppealController class
 
-// ─────────────────────────────────────────────────────
-//  ADMIN CONTROLLER  /admin/**
-// ─────────────────────────────────────────────────────
+    @DeleteMapping("/{appealId}")
+    public ResponseEntity<ApiResponse<String>> deleteAppeal(
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID appealId) {
+        appealService.deleteAppeal(appealId, currentUserId(ud));
+        return ResponseEntity.ok(ApiResponse.ok("Message deleted", null));
+    }
+}
+
 // ─────────────────────────────────────────────────────
 //  ADMIN CONTROLLER  /admin/**
 // ─────────────────────────────────────────────────────
