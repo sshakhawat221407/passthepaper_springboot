@@ -1,5 +1,7 @@
+// NotificationDto.java — replace entire file:
 package com.passthepaper.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.passthepaper.entity.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -15,10 +17,8 @@ public class NotificationDto {
         String type,
         String title,
         String message,
-        boolean isRead,
+        @JsonProperty("isRead") boolean isRead,
         UUID relatedId,
         Instant createdAt
     ) {}
 }
-
-// ─────────────── Feedback ───────────────
