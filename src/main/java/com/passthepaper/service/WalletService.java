@@ -23,7 +23,10 @@ public class WalletService {
     private final WithdrawalRepository withdrawalRepo;
     private final NotificationService notificationService;
     private final LogService logService;
-
+    // Add these two fields to WalletService (with @RequiredArgsConstructor they inject automatically):
+private final PurchaseRepository purchaseRepo;
+private final CartItemRepository cartRepo;
+private final ResourceRepository resourceRepo;
     /** User requests a wallet top-up (requires admin approval) */
     @Transactional
     public void requestTopup(UUID userId, TransactionDto.AddFundsRequest req) {
@@ -51,29 +54,70 @@ public class WalletService {
     }
 
     /** Admin approves a top-up transaction */
-    @Transactional
-    public void approveTransaction(UUID txnId, UUID adminId) {
-        Transaction txn = txnRepo.findById(txnId)
-                .orElseThrow(() -> new AppException("Transaction not found"));
-        if (txn.getStatus() != Transaction.TxnStatus.pending) throw new AppException("Already processed");
+   @Transactional
+public void approveTransaction(UUID txnId, UUID adminId) {
+    Transaction txn = txnRepo.findById(txnId)
+            .orElseThrow(() -> new AppException("Transaction not found"));
+    if (txn.getStatus() != Transaction.TxnStatus.pending) throw new AppException("Already processed");
 
-        txn.setStatus(Transaction.TxnStatus.approved);
-        txnRepo.save(txn);
+    txn.setStatus(Transaction.TxnStatus.approved);
+    txnRepo.save(txn);
 
-        User user = txn.getUser();
-        if (txn.getType() == Transaction.TxnType.add) {
-            user.setWalletBalance(user.getWalletBalance().add(txn.getAmount()));
-            user.setPendingBalance(user.getPendingBalance().subtract(txn.getAmount()));
-            userRepo.save(user);
-            notificationService.send(user, Notification.NotificationType.system,
-                    "Wallet Top-up Approved",
-                    "Your BDT " + txn.getAmount() + " wallet top-up has been approved.", null);
-        }
+    User user = txn.getUser();
+
+    if (txn.getType() == Transaction.TxnType.add) {
+        // Wallet top-up approval
+        user.setWalletBalance(user.getWalletBalance().add(txn.getAmount()));
+        user.setPendingBalance(user.getPendingBalance().subtract(txn.getAmount()));
+        userRepo.save(user);
+        notificationService.send(user, Notification.NotificationType.system,
+                "Wallet Top-up Approved",
+                "Your BDT " + txn.getAmount() + " wallet top-up has been approved.", null);
         logService.log(Log.LogType.admin_action, "TOPUP_APPROVED",
                 "Admin approved top-up of ৳" + txn.getAmount() + " for " + user.getName(),
                 adminId, null, user.getId(), user.getName(),
                 Map.of("amount", txn.getAmount().toString()));
+
+    } else if (txn.getType() == Transaction.TxnType.purchase) {
+        // Bkash/Nagad purchase approval — create actual Purchase records now
+        String desc = txn.getDescription() != null ? txn.getDescription() : "";
+        String resourcesCsv = "";
+        if (desc.contains("resources:")) {
+            resourcesCsv = desc.substring(desc.indexOf("resources:") + "resources:".length()).trim();
+        }
+        if (!resourcesCsv.isEmpty()) {
+            for (String idStr : resourcesCsv.split(",")) {
+                try {
+                    UUID resourceId = UUID.fromString(idStr.trim());
+                    resourceRepo.findById(resourceId).ifPresent(res -> {
+                        // Only create purchase if not already purchased
+                        if (!purchaseRepo.existsByUserAndResource(user, res)) {
+                            purchaseRepo.save(Purchase.builder()
+                                    .user(user).resource(res)
+                                    .price(res.getPrice()).priceType(res.getPriceType())
+                                    .paymentMethod(txn.getPaymentMethod()).build());
+                            res.setDownloads(res.getDownloads() + 1);
+                            resourceRepo.save(res);
+                            // Clear from cart
+                            cartRepo.deleteByUserAndResource(user, res);
+                            // Notify seller
+                            notificationService.send(res.getUploadedBy(),
+                                    Notification.NotificationType.sale, "New Purchase",
+                                    user.getName() + " purchased your resource: " + res.getTitle(), null);
+                        }
+                    });
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+        notificationService.send(user, Notification.NotificationType.system,
+                "Purchase Approved",
+                "Your " + txn.getPaymentMethod().name() + " payment has been verified. Resources are now accessible.", null);
+        logService.log(Log.LogType.admin_action, "PURCHASE_APPROVED",
+                "Admin approved " + txn.getPaymentMethod().name() + " purchase for " + user.getName(),
+                adminId, null, user.getId(), user.getName(),
+                Map.of("amount", txn.getAmount().toString()));
     }
+}
 
     /** Admin rejects a top-up transaction */
     @Transactional
