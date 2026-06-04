@@ -9,10 +9,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class PurchaseDto {
-    public record CheckoutRequest(
-        @NotEmpty java.util.List<UUID> resourceIds,
-        @NotBlank String paymentMethod
-    ) {}
+   public record CheckoutRequest(
+    @NotEmpty java.util.List<UUID> resourceIds,
+    @NotBlank String paymentMethod,
+    String paymentPhone,
+    String transactionNumber
+) {}
 
     public record RatingRequest(
         @NotNull UUID purchaseId,
