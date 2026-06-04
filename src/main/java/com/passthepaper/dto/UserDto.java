@@ -1,5 +1,6 @@
 package com.passthepaper.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.passthepaper.entity.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -17,9 +18,9 @@ public class UserDto {
         String name,
         String university,
         String studentId,
-        boolean isVerified,
-        boolean isAdmin,
-        boolean isBanned,
+        @JsonProperty("isVerified")  boolean isVerified,
+        @JsonProperty("isAdmin")     boolean isAdmin,
+        @JsonProperty("isBanned")    boolean isBanned,
         String banReason,
         BigDecimal walletBalance,
         BigDecimal pendingBalance,
@@ -31,9 +32,9 @@ public class UserDto {
         String idCardStatus,
         BigDecimal sellerRating,
         int totalRatings,
-        boolean canUpload,
-        boolean canPurchase,
-        boolean canComment,
+        @JsonProperty("canUpload")   boolean canUpload,
+        @JsonProperty("canPurchase") boolean canPurchase,
+        @JsonProperty("canComment")  boolean canComment,
         Instant createdAt
     ) {
         public static Response from(User u) {
@@ -59,5 +60,3 @@ public class UserDto {
     public record BanRequest(@NotBlank String reason) {}
     public record UnbanRequest() {}
 }
-
-// ─────────────── Resource ───────────────
