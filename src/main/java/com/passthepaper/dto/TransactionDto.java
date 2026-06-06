@@ -25,17 +25,37 @@ public class TransactionDto {
     @Builder
     public record Response(
         UUID id,
-        UUID userId,
+        String userId,
+        String userName,
         String type,
         BigDecimal amount,
         String currency,
         String description,
         String paymentMethod,
         String status,
+        String paymentPhone,
+        String transactionNumber,
         BigDecimal pointsTopupRate,
         String membershipPlan,
         Instant createdAt
-    ) {}
+    ) {
+        public static Response from(Transaction t) {
+            return new Response(
+                t.getId(),
+                t.getUser() != null ? t.getUser().getId().toString() : null,
+                t.getUser() != null ? t.getUser().getName() : null,
+                t.getType().name(),
+                t.getAmount(),
+                t.getCurrency().name(),
+                t.getDescription(),
+                t.getPaymentMethod() != null ? t.getPaymentMethod().name() : null,
+                t.getStatus().name(),
+                t.getPaymentPhone(),
+                t.getTransactionNumber(),
+                t.getPointsTopupRate(),
+                t.getMembershipPlan() != null ? t.getMembershipPlan().name() : null,
+                t.getCreatedAt()
+            );
+        }
+    }
 }
-
-// ─────────────── Wallet ───────────────
