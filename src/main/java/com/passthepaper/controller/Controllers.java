@@ -95,6 +95,13 @@ class UserController {
         userService.uploadIdCard(currentUserId(ud), body.get("imageBase64"));
         return ResponseEntity.ok(ApiResponse.ok("ID card submitted for review", null));
     }
+    @DeleteMapping("/me")
+public ResponseEntity<ApiResponse<String>> deleteAccount(
+        @AuthenticationPrincipal UserDetails ud,
+        @RequestBody Map<String, String> body) {
+    userService.deleteAccount(currentUserId(ud), body.get("password"), encoder);
+    return ResponseEntity.ok(ApiResponse.ok("Account deleted successfully", null));
+}
 }
 
 // ─────────────────────────────────────────────────────
