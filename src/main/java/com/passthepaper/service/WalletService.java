@@ -238,19 +238,20 @@ public void approveTransaction(UUID txnId, UUID adminId) {
         userRepo.save(user);
     }
 
-    public List<Transaction> getMyTransactions(UUID userId) {
-        User user = userRepo.findById(userId).orElseThrow();
-        return txnRepo.findByUserOrderByCreatedAtDesc(user);
-    }
-
+public List<TransactionDto.Response> getMyTransactions(UUID userId) {
+    User user = userRepo.findById(userId).orElseThrow();
+    return txnRepo.findByUserOrderByCreatedAtDesc(user)
+            .stream().map(TransactionDto.Response::from).toList();
+}
     public List<Withdrawal> getMyWithdrawals(UUID userId) {
         User user = userRepo.findById(userId).orElseThrow();
         return withdrawalRepo.findByUserOrderByCreatedAtDesc(user);
     }
 
-    public List<Transaction> getAllPendingTransactions() {
-        return txnRepo.findByStatusOrderByCreatedAtDesc(Transaction.TxnStatus.pending);
-    }
+   public List<TransactionDto.Response> getAllPendingTransactions() {
+    return txnRepo.findByStatusOrderByCreatedAtDesc(Transaction.TxnStatus.pending)
+            .stream().map(TransactionDto.Response::from).toList();
+}
 
     public List<Withdrawal> getAllPendingWithdrawals() {
         return withdrawalRepo.findByStatusOrderByCreatedAtDesc(Withdrawal.WithdrawalStatus.pending);
