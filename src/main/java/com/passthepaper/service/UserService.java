@@ -45,7 +45,18 @@ public class UserService {
         user.setPasswordHash(encoder.encode(newRaw));
         userRepo.save(user);
     }
-
+@Transactional
+public void deleteAccount(UUID userId, String currentPassword,
+                           org.springframework.security.crypto.password.PasswordEncoder encoder) {
+    User user = getById(userId);
+    if (!encoder.matches(currentPassword, user.getPasswordHash())) {
+        throw new AppException("Incorrect password. Please try again.");
+    }
+    // All related rows (resources, transactions, notifications, purchases,
+    // cart_items, withdrawals, feedbacks, appeals, logs) are deleted
+    // automatically because every FK has ON DELETE CASCADE in the schema.
+    userRepo.deleteById(userId);
+}
     @Transactional
     public void uploadIdCard(UUID userId, String base64Image) {
         User user = getById(userId);
