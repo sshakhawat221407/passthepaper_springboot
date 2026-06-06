@@ -296,7 +296,7 @@ class WalletController {
 
     // FIX: GET /wallet/transactions
     @GetMapping("/transactions")
-    public ResponseEntity<ApiResponse<List<Transaction>>> myTransactions(
+   public ResponseEntity<ApiResponse<List<TransactionDto.Response>>> getMyTransactions(
             @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getMyTransactions(currentUserId(ud))));
     }
@@ -564,7 +564,7 @@ class AdminController {
 
     // FIX: GET /admin/transactions/pending (frontend requests this path)
     @GetMapping("/transactions/pending")
-    public ResponseEntity<ApiResponse<List<Transaction>>> pendingTransactions() {
+    public ResponseEntity<ApiResponse<List<TransactionDto.Response>>> pendingTransactions(
         return ResponseEntity.ok(ApiResponse.ok(walletService.getAllPendingTransactions()));
     }
 
