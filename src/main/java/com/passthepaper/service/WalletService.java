@@ -238,6 +238,7 @@ public void approveTransaction(UUID txnId, UUID adminId) {
         userRepo.save(user);
     }
 
+@Transactional(readOnly = true)
 public List<TransactionDto.Response> getMyTransactions(UUID userId) {
     User user = userRepo.findById(userId).orElseThrow();
     return txnRepo.findByUserOrderByCreatedAtDesc(user)
@@ -248,7 +249,8 @@ public List<TransactionDto.Response> getMyTransactions(UUID userId) {
         return withdrawalRepo.findByUserOrderByCreatedAtDesc(user);
     }
 
-   public List<TransactionDto.Response> getAllPendingTransactions() {
+  @Transactional(readOnly = true)
+public List<TransactionDto.Response> getAllPendingTransactions() {
     return txnRepo.findByStatusOrderByCreatedAtDesc(Transaction.TxnStatus.pending)
             .stream().map(TransactionDto.Response::from).toList();
 }
