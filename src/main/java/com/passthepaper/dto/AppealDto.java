@@ -1,48 +1,46 @@
-package com.passthepaper.entity;
+package com.passthepaper.dto;
 
-import jakarta.persistence.*;
+import com.passthepaper.entity.*;
+import jakarta.validation.constraints.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import com.passthepaper.entity.Appeal;
+import jakarta.validation.constraints.NotBlank;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity
-@Table(name = "appeals")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Appeal {
+public class AppealDto {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    public record CreateRequest(@NotBlank String reason) {}
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    public record ReviewRequest(boolean approve, String adminResponse) {}
+}
 
-    @Column(name = "user_name", nullable = false, length = 150)
-    private String userName;
-
-    @Column(name = "user_email", nullable = false, length = 255)
-    private String userEmail;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String reason;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private AppealStatus status = AppealStatus.pending;
-
-    @Column(name = "admin_response", columnDefinition = "TEXT")
-    private String adminResponse;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @Column(name = "reviewed_at")
-    private Instant reviewedAt;
-
-    public enum AppealStatus { pending, approved, rejected }
+// ─────────────── Admin ───────────────
+    public record Response(
+        UUID id,
+        String userId,
+        String userName,
+        String userEmail,
+        String reason,
+        String status,
+        String adminResponse,
+        Instant createdAt,
+        Instant reviewedAt
+    ) {
+        public static Response from(Appeal a) {
+            return new Response(
+                a.getId(),
+                a.getUser().getId().toString(),
+                a.getUserName(),
+                a.getUserEmail(),
+                a.getReason(),
+                a.getStatus().name(),
+                a.getAdminResponse(),
+                a.getCreatedAt(),
+                a.getReviewedAt()
+            );
+        }
+    }
 }
