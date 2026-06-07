@@ -1,6 +1,5 @@
 package com.passthepaper.service;
 
-import com.passthepaper.dto.AppealDto;
 import com.passthepaper.entity.*;
 import com.passthepaper.exception.AppException;
 import com.passthepaper.repository.*;
