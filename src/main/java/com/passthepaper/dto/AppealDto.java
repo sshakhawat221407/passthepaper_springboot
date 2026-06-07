@@ -1,40 +1,48 @@
-package com.passthepaper.dto;
+package com.passthepaper.entity;
 
-import com.passthepaper.entity.Appeal;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public class AppealDto {
+@Entity
+@Table(name = "appeals")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class Appeal {
 
-    public record CreateRequest(@NotBlank String reason) {}
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    public record ReviewRequest(boolean approve, String adminResponse) {}
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    public record Response(
-        UUID id,
-        String userId,
-        String userName,
-        String userEmail,
-        String reason,
-        String status,
-        String adminResponse,
-        Instant createdAt,
-        Instant reviewedAt
-    ) {
-        public static Response from(Appeal a) {
-            return new Response(
-                a.getId(),
-                a.getUser().getId().toString(),
-                a.getUserName(),
-                a.getUserEmail(),
-                a.getReason(),
-                a.getStatus().name(),
-                a.getAdminResponse(),
-                a.getCreatedAt(),
-                a.getReviewedAt()
-            );
-        }
-    }
+    @Column(name = "user_name", nullable = false, length = 150)
+    private String userName;
+
+    @Column(name = "user_email", nullable = false, length = 255)
+    private String userEmail;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String reason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AppealStatus status = AppealStatus.pending;
+
+    @Column(name = "admin_response", columnDefinition = "TEXT")
+    private String adminResponse;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+
+    public enum AppealStatus { pending, approved, rejected }
 }
