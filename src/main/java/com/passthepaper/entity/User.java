@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class User {
 
     @Id
@@ -109,4 +109,56 @@ public class User {
 
     public enum MembershipPlan { free, premium_monthly, premium_yearly }
     public enum IdCardStatus { none, pending, approved, rejected }
+
+    // Manual getters
+    public UUID getId() { return id; }
+    public String getEmail() { return email; }
+    public String getPasswordHash() { return passwordHash; }
+    public String getName() { return name; }
+    public String getUniversity() { return university; }
+    public String getStudentId() { return studentId; }
+    public Boolean getIsVerified() { return isVerified; }
+    public Boolean getIsAdmin() { return isAdmin; }
+    public Boolean getIsBanned() { return isBanned; }
+    public String getBanReason() { return banReason; }
+    public BigDecimal getWalletBalance() { return walletBalance; }
+    public BigDecimal getPendingBalance() { return pendingBalance; }
+    public Integer getRewardPoints() { return rewardPoints; }
+    public MembershipPlan getMembershipType() { return membershipType; }
+    public Instant getMembershipExpiry() { return membershipExpiry; }
+    public String getProfilePicture() { return profilePicture; }
+    public String getIdCardImage() { return idCardImage; }
+    public IdCardStatus getIdCardStatus() { return idCardStatus; }
+    public BigDecimal getSellerRating() { return sellerRating; }
+    public Integer getTotalRatings() { return totalRatings; }
+    public Boolean getCanUpload() { return canUpload; }
+    public Boolean getCanPurchase() { return canPurchase; }
+    public Boolean getCanComment() { return canComment; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+
+    // Manual setters
+    public void setId(UUID id) { this.id = id; }
+    public void setEmail(String email) { this.email = email; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public void setName(String name) { this.name = name; }
+    public void setUniversity(String university) { this.university = university; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
+    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+    public void setIsAdmin(Boolean isAdmin) { this.isAdmin = isAdmin; }
+    public void setIsBanned(Boolean isBanned) { this.isBanned = isBanned; }
+    public void setBanReason(String banReason) { this.banReason = banReason; }
+    public void setWalletBalance(BigDecimal walletBalance) { this.walletBalance = walletBalance; }
+    public void setPendingBalance(BigDecimal pendingBalance) { this.pendingBalance = pendingBalance; }
+    public void setRewardPoints(Integer rewardPoints) { this.rewardPoints = rewardPoints; }
+    public void setMembershipType(MembershipPlan membershipType) { this.membershipType = membershipType; }
+    public void setMembershipExpiry(Instant membershipExpiry) { this.membershipExpiry = membershipExpiry; }
+    public void setProfilePicture(String profilePicture) { this.profilePicture = profilePicture; }
+    public void setIdCardImage(String idCardImage) { this.idCardImage = idCardImage; }
+    public void setIdCardStatus(IdCardStatus idCardStatus) { this.idCardStatus = idCardStatus; }
+    public void setSellerRating(BigDecimal sellerRating) { this.sellerRating = sellerRating; }
+    public void setTotalRatings(Integer totalRatings) { this.totalRatings = totalRatings; }
+    public void setCanUpload(Boolean canUpload) { this.canUpload = canUpload; }
+    public void setCanPurchase(Boolean canPurchase) { this.canPurchase = canPurchase; }
+    public void setCanComment(Boolean canComment) { this.canComment = canComment; }
 }
