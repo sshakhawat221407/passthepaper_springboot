@@ -7,7 +7,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -88,7 +87,6 @@ public class User {
     @Builder.Default
     private Integer totalRatings = 0;
 
-    // User restrictions
     @Column(name = "can_upload", nullable = false)
     @Builder.Default
     private Boolean canUpload = true;
@@ -109,17 +107,6 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    // Relationships
-    @OneToMany(mappedBy = "uploadedBy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Resource> resources;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Transaction> transactions;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Notification> notifications;
-
-    // Enums
     public enum MembershipPlan { free, premium_monthly, premium_yearly }
     public enum IdCardStatus { none, pending, approved, rejected }
 }
