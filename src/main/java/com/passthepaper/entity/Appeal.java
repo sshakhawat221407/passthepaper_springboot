@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "appeals")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Appeal {
 
     @Id
@@ -45,4 +45,25 @@ public class Appeal {
     private Instant reviewedAt;
 
     public enum AppealStatus { pending, approved, rejected }
+
+    // Manual getters
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public String getUserName() { return userName; }
+    public String getUserEmail() { return userEmail; }
+    public String getReason() { return reason; }
+    public AppealStatus getStatus() { return status; }
+    public String getAdminResponse() { return adminResponse; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getReviewedAt() { return reviewedAt; }
+
+    // Manual setters
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setUserName(String userName) { this.userName = userName; }
+    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+    public void setReason(String reason) { this.reason = reason; }
+    public void setStatus(AppealStatus status) { this.status = status; }
+    public void setAdminResponse(String adminResponse) { this.adminResponse = adminResponse; }
+    public void setReviewedAt(Instant reviewedAt) { this.reviewedAt = reviewedAt; }
 }
