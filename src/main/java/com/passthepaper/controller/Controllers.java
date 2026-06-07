@@ -564,7 +564,7 @@ class AdminController {
 
     // FIX: GET /admin/transactions/pending (frontend requests this path)
     @GetMapping("/transactions/pending")
-    public ResponseEntity<ApiResponse<List<TransactionDto.Response>>> pendingTransactions(
+    public ResponseEntity<ApiResponse<List<TransactionDto.Response>>> pendingTransactions() {
         return ResponseEntity.ok(ApiResponse.ok(walletService.getAllPendingTransactions()));
     }
 
@@ -632,12 +632,12 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
         return ResponseEntity.ok(ApiResponse.ok("Appeal reviewed", null));
     }
 
-    // ─── Logs ─────────────────────────────────────────────
+// ─── Logs ─────────────────────────────────────────────
 
-@GetMapping("/logs")
-public ResponseEntity<ApiResponse<List<Log>>> getLogs(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "200") int size) {
-    return ResponseEntity.ok(ApiResponse.ok(logService.getLogs(page, size)));
-}
+    @GetMapping("/logs")
+    public ResponseEntity<ApiResponse<List<Log>>> getLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "200") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(logService.getLogs(page, size)));
+    }
 }
