@@ -445,7 +445,7 @@ class FeedbackController {
 
     // POST /feedbacks — create system or item feedback
     @PostMapping
-    public ResponseEntity<ApiResponse<Feedback>> create(
+    public ResponseEntity<ApiResponse<String>> create(
             @AuthenticationPrincipal UserDetails ud,
             @Valid @RequestBody FeedbackDto.CreateRequest req) {
         User user = userRepo.findById(currentUserId(ud)).orElseThrow();
@@ -464,8 +464,8 @@ class FeedbackController {
         if (req.itemId() != null) {
             resourceRepo.findById(req.itemId()).ifPresent(fb::setItem);
         }
-        Feedback saved = feedbackRepo.save(fb);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
+        feedbackRepo.save(fb);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Feedback submitted"));
     }
 }
 
