@@ -484,6 +484,22 @@ class FeedbackController {
         feedbackRepo.save(fb);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Feedback submitted"));
     }
+
+    @PutMapping("/{id}")
+public ResponseEntity<ApiResponse<String>> update(
+        @AuthenticationPrincipal UserDetails ud,
+        @PathVariable UUID id,
+        @RequestBody Map<String, Object> body) {
+    UUID userId = currentUserId(ud);
+    Feedback fb = feedbackRepo.findById(id)
+            .orElseThrow(() -> new AppException("Feedback not found"));
+    if (!fb.getUser().getId().equals(userId))
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    fb.setRating(((Number) body.get("rating")).shortValue());
+    fb.setComment((String) body.get("comment"));
+    feedbackRepo.save(fb);
+    return ResponseEntity.ok(ApiResponse.ok("Feedback updated"));
+}
 }
 // ─────────────────────────────────────────────────────
 //  APPEAL CONTROLLER  /appeals/**
@@ -716,13 +732,25 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
 
     // ─── Feedbacks ────────────────────────────────────────────
     @GetMapping("/feedbacks")
-    public ResponseEntity<ApiResponse<List<Feedback>>> allFeedbacks(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "100") int size) {
-        org.springframework.data.domain.Pageable pageable =
-            org.springframework.data.domain.PageRequest.of(page, size,
-                org.springframework.data.domain.Sort.by("createdAt").descending());
-        List<Feedback> list = feedbackRepo.findAllPaged(pageable).getContent();
-        return ResponseEntity.ok(ApiResponse.ok(list));
-    }
+public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "100") int size) {
+    org.springframework.data.domain.Pageable pageable =
+        org.springframework.data.domain.PageRequest.of(page, size,
+            org.springframework.data.domain.Sort.by("createdAt").descending());
+    List<Map<String, Object>> result = feedbackRepo.findAllPaged(pageable).getContent()
+        .stream().map(f -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", f.getId());
+            m.put("userId", f.getUser().getId());
+            m.put("type", f.getType().name());
+            m.put("rating", f.getRating());
+            m.put("comment", f.getComment());
+            m.put("itemId", f.getItem() != null ? f.getItem().getId() : null);
+            m.put("itemTitle", f.getItemTitle());
+            m.put("createdAt", f.getCreatedAt());
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+    return ResponseEntity.ok(ApiResponse.ok(result));
+}
 }
