@@ -23,9 +23,13 @@ public class AppealService {
     @Transactional
     public Appeal submitAppeal(UUID userId, AppealDto.CreateRequest req) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
-        Appeal saved = appealRepo.save(Appeal.builder()
-                .user(user).userName(user.getName()).userEmail(user.getEmail())
-                .reason(req.reason()).status(Appeal.AppealStatus.pending).build());
+        Appeal appeal = new Appeal();
+        appeal.setUser(user);
+        appeal.setUserName(user.getName());
+        appeal.setUserEmail(user.getEmail());
+        appeal.setReason(req.reason());
+        appeal.setStatus(Appeal.AppealStatus.pending);
+        Appeal saved = appealRepo.save(appeal);
         logService.log(Log.LogType.user_action, "APPEAL_SUBMITTED",
                 "User submitted a support message: " + user.getName(),
                 user.getId(), user.getName(), null, null, null);
