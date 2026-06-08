@@ -111,6 +111,23 @@ public class PurchaseService {
             purchaseRepo.save(purchase);
 
             res.setDownloads(res.getDownloads() + 1);
+
+            // If priced in points: credit the seller immediately on each sale
+            if (res.getPriceType() == Resource.PriceType.points && res.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+                User seller = userRepo.findById(res.getUploadedBy().getId())
+                        .orElse(res.getUploadedBy());
+                seller.setRewardPoints(seller.getRewardPoints() + res.getPrice().intValue());
+                userRepo.save(seller);
+            }
+
+            // If the resource has hit its max sales limit, notify the seller
+            if (res.getMaxSales() != null && res.getDownloads() >= res.getMaxSales()) {
+                notificationService.send(res.getUploadedBy(), Notification.NotificationType.sale,
+                        "Resource Sold Out",
+                        "Your resource "" + res.getTitle() + "" has reached its maximum sales limit and is now hidden from the store.",
+                        null);
+            }
+
             resourceRepo.save(res);
 
             Transaction txn = new Transaction();
