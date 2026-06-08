@@ -18,8 +18,9 @@ public class Feedback {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+@JoinColumn(name = "user_id", nullable = false)
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "purchases", "cartItems", "notifications"})
+private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -33,8 +34,9 @@ public class Feedback {
     private String comment;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "item_id")
-    private Resource item;
+@JoinColumn(name = "item_id")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "uploadedBy"})
+private Resource item;
 
     @Column(name = "item_title", length = 255)
     private String itemTitle;
