@@ -12,6 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "logs")
+@Getter @Setter
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class Log {
 
@@ -50,25 +51,4 @@ public class Log {
     private Instant createdAt;
 
     public enum LogType { user_action, admin_action, transaction, verification, system }
-
-    public UUID getId() { return id; }
-    public LogType getType() { return type; }
-    public String getAction() { return action; }
-    public String getDescription() { return description; }
-    public UUID getUserId() { return userId; }
-    public String getUserName() { return userName; }
-    public UUID getTargetUserId() { return targetUserId; }
-    public String getTargetUserName() { return targetUserName; }
-    public Map<String, Object> getMetadata() { return metadata; }
-    public Instant getCreatedAt() { return createdAt; }
-
-    public void setId(UUID id) { this.id = id; }
-    public void setType(LogType type) { this.type = type; }
-    public void setAction(String action) { this.action = action; }
-    public void setDescription(String description) { this.description = description; }
-    public void setUserId(UUID userId) { this.userId = userId; }
-    public void setUserName(String userName) { this.userName = userName; }
-    public void setTargetUserId(UUID targetUserId) { this.targetUserId = targetUserId; }
-    public void setTargetUserName(String targetUserName) { this.targetUserName = targetUserName; }
-    public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
 }
