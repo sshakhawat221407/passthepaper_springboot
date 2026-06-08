@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "withdrawals")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Withdrawal {
 
     @Id
@@ -44,4 +44,21 @@ public class Withdrawal {
     private Instant completedAt;
 
     public enum WithdrawalStatus { pending, completed, rejected }
+
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public BigDecimal getAmount() { return amount; }
+    public Transaction.PaymentMethod getMethod() { return method; }
+    public String getAccountNumber() { return accountNumber; }
+    public WithdrawalStatus getStatus() { return status; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getCompletedAt() { return completedAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public void setMethod(Transaction.PaymentMethod method) { this.method = method; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public void setStatus(WithdrawalStatus status) { this.status = status; }
+    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
 }
