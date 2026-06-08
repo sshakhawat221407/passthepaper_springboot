@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "feedbacks")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Feedback {
 
     @Id
@@ -27,7 +27,7 @@ public class Feedback {
     private FeedbackType type = FeedbackType.system;
 
     @Column(nullable = false)
-    private Short rating; // 1-5
+    private Short rating;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String comment;
@@ -48,4 +48,22 @@ public class Feedback {
     private Instant updatedAt;
 
     public enum FeedbackType { system, item }
+
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public FeedbackType getType() { return type; }
+    public Short getRating() { return rating; }
+    public String getComment() { return comment; }
+    public Resource getItem() { return item; }
+    public String getItemTitle() { return itemTitle; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setType(FeedbackType type) { this.type = type; }
+    public void setRating(Short rating) { this.rating = rating; }
+    public void setComment(String comment) { this.comment = comment; }
+    public void setItem(Resource item) { this.item = item; }
+    public void setItemTitle(String itemTitle) { this.itemTitle = itemTitle; }
 }
