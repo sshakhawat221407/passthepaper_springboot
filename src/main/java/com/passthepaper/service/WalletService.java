@@ -23,103 +23,93 @@ public class WalletService {
     private final WithdrawalRepository withdrawalRepo;
     private final NotificationService notificationService;
     private final LogService logService;
-    // Add these two fields to WalletService (with @RequiredArgsConstructor they inject automatically):
-private final PurchaseRepository purchaseRepo;
-private final CartItemRepository cartRepo;
-private final ResourceRepository resourceRepo;
-    /** User requests a wallet top-up (requires admin approval) */
+    private final PurchaseRepository purchaseRepo;
+    private final CartItemRepository cartRepo;
+    private final ResourceRepository resourceRepo;
+
     @Transactional
     public void requestTopup(UUID userId, TransactionDto.AddFundsRequest req) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
-
         Transaction.PaymentMethod pm;
         try { pm = Transaction.PaymentMethod.valueOf(req.paymentMethod()); }
         catch (Exception e) { throw new AppException("Invalid payment method"); }
 
-        Transaction txn = Transaction.builder()
-                .user(user)
-                .type(Transaction.TxnType.add)
-                .amount(req.amount())
-                .currency(Transaction.TxnCurrency.BDT)
-                .description("Wallet top-up via " + pm.name())
-                .paymentMethod(pm)
-                .status(Transaction.TxnStatus.pending)
-                .paymentPhone(req.paymentPhone())
-                .transactionNumber(req.transactionNumber())
-                .build();
+        Transaction txn = new Transaction();
+        txn.setUser(user);
+        txn.setType(Transaction.TxnType.add);
+        txn.setAmount(req.amount());
+        txn.setCurrency(Transaction.TxnCurrency.BDT);
+        txn.setDescription("Wallet top-up via " + pm.name());
+        txn.setPaymentMethod(pm);
+        txn.setStatus(Transaction.TxnStatus.pending);
+        txn.setPaymentPhone(req.paymentPhone());
+        txn.setTransactionNumber(req.transactionNumber());
         txnRepo.save(txn);
-        // Increment pending balance
+
         user.setPendingBalance(user.getPendingBalance().add(req.amount()));
         userRepo.save(user);
     }
 
-    /** Admin approves a top-up transaction */
-   @Transactional
-public void approveTransaction(UUID txnId, UUID adminId) {
-    Transaction txn = txnRepo.findById(txnId)
-            .orElseThrow(() -> new AppException("Transaction not found"));
-    if (txn.getStatus() != Transaction.TxnStatus.pending) throw new AppException("Already processed");
+    @Transactional
+    public void approveTransaction(UUID txnId, UUID adminId) {
+        Transaction txn = txnRepo.findById(txnId)
+                .orElseThrow(() -> new AppException("Transaction not found"));
+        if (txn.getStatus() != Transaction.TxnStatus.pending) throw new AppException("Already processed");
 
-    txn.setStatus(Transaction.TxnStatus.approved);
-    txnRepo.save(txn);
+        txn.setStatus(Transaction.TxnStatus.approved);
+        txnRepo.save(txn);
 
-    User user = txn.getUser();
+        User user = txn.getUser();
 
-    if (txn.getType() == Transaction.TxnType.add) {
-        // Wallet top-up approval
-        user.setWalletBalance(user.getWalletBalance().add(txn.getAmount()));
-        user.setPendingBalance(user.getPendingBalance().subtract(txn.getAmount()));
-        userRepo.save(user);
-        notificationService.send(user, Notification.NotificationType.system,
-                "Wallet Top-up Approved",
-                "Your BDT " + txn.getAmount() + " wallet top-up has been approved.", null);
-        logService.log(Log.LogType.admin_action, "TOPUP_APPROVED",
-                "Admin approved top-up of ৳" + txn.getAmount() + " for " + user.getName(),
-                adminId, null, user.getId(), user.getName(),
-                Map.of("amount", txn.getAmount().toString()));
+        if (txn.getType() == Transaction.TxnType.add) {
+            user.setWalletBalance(user.getWalletBalance().add(txn.getAmount()));
+            user.setPendingBalance(user.getPendingBalance().subtract(txn.getAmount()));
+            userRepo.save(user);
+            notificationService.send(user, Notification.NotificationType.system,
+                    "Wallet Top-up Approved",
+                    "Your BDT " + txn.getAmount() + " wallet top-up has been approved.", null);
+            logService.log(Log.LogType.admin_action, "TOPUP_APPROVED",
+                    "Admin approved top-up of " + txn.getAmount() + " for " + user.getName(),
+                    adminId, null, user.getId(), user.getName(),
+                    Map.of("amount", txn.getAmount().toString()));
 
-    } else if (txn.getType() == Transaction.TxnType.purchase) {
-        // Bkash/Nagad purchase approval — create actual Purchase records now
-        String desc = txn.getDescription() != null ? txn.getDescription() : "";
-        String resourcesCsv = "";
-        if (desc.contains("resources:")) {
-            resourcesCsv = desc.substring(desc.indexOf("resources:") + "resources:".length()).trim();
-        }
-        if (!resourcesCsv.isEmpty()) {
-            for (String idStr : resourcesCsv.split(",")) {
-                try {
-                    UUID resourceId = UUID.fromString(idStr.trim());
-                    resourceRepo.findById(resourceId).ifPresent(res -> {
-                        // Only create purchase if not already purchased
-                        if (!purchaseRepo.existsByUserAndResource(user, res)) {
-                            purchaseRepo.save(Purchase.builder()
-                                    .user(user).resource(res)
-                                    .price(res.getPrice()).priceType(res.getPriceType())
-                                    .paymentMethod(txn.getPaymentMethod()).build());
-                            res.setDownloads(res.getDownloads() + 1);
-                            resourceRepo.save(res);
-                            // Clear from cart
-                            cartRepo.deleteByUserAndResource(user, res);
-                            // Notify seller
-                            notificationService.send(res.getUploadedBy(),
-                                    Notification.NotificationType.sale, "New Purchase",
-                                    user.getName() + " purchased your resource: " + res.getTitle(), null);
-                        }
-                    });
-                } catch (IllegalArgumentException ignored) {}
+        } else if (txn.getType() == Transaction.TxnType.purchase) {
+            String desc = txn.getDescription() != null ? txn.getDescription() : "";
+            if (desc.contains("resources:")) {
+                String csv = desc.substring(desc.indexOf("resources:") + "resources:".length()).trim();
+                for (String idStr : csv.split(",")) {
+                    try {
+                        UUID rid = UUID.fromString(idStr.trim());
+                        resourceRepo.findById(rid).ifPresent(res -> {
+                            if (!purchaseRepo.existsByUserAndResource(user, res)) {
+                                Purchase purchase = new Purchase();
+                                purchase.setUser(user);
+                                purchase.setResource(res);
+                                purchase.setPrice(res.getPrice());
+                                purchase.setPriceType(res.getPriceType());
+                                purchase.setPaymentMethod(txn.getPaymentMethod());
+                                purchaseRepo.save(purchase);
+                                res.setDownloads(res.getDownloads() + 1);
+                                resourceRepo.save(res);
+                                cartRepo.deleteByUserAndResource(user, res);
+                                notificationService.send(res.getUploadedBy(),
+                                        Notification.NotificationType.sale, "New Purchase",
+                                        user.getName() + " purchased: " + res.getTitle(), null);
+                            }
+                        });
+                    } catch (IllegalArgumentException ignored) {}
+                }
             }
+            notificationService.send(user, Notification.NotificationType.system,
+                    "Purchase Approved",
+                    "Your " + txn.getPaymentMethod().name() + " payment verified. Resources are now accessible.", null);
+            logService.log(Log.LogType.admin_action, "PURCHASE_APPROVED",
+                    "Admin approved " + txn.getPaymentMethod().name() + " purchase for " + user.getName(),
+                    adminId, null, user.getId(), user.getName(),
+                    Map.of("amount", txn.getAmount().toString()));
         }
-        notificationService.send(user, Notification.NotificationType.system,
-                "Purchase Approved",
-                "Your " + txn.getPaymentMethod().name() + " payment has been verified. Resources are now accessible.", null);
-        logService.log(Log.LogType.admin_action, "PURCHASE_APPROVED",
-                "Admin approved " + txn.getPaymentMethod().name() + " purchase for " + user.getName(),
-                adminId, null, user.getId(), user.getName(),
-                Map.of("amount", txn.getAmount().toString()));
     }
-}
 
-    /** Admin rejects a top-up transaction */
     @Transactional
     public void rejectTransaction(UUID txnId, UUID adminId) {
         Transaction txn = txnRepo.findById(txnId)
@@ -139,7 +129,6 @@ public void approveTransaction(UUID txnId, UUID adminId) {
                 "Your transaction request for BDT " + txn.getAmount() + " was rejected.", null);
     }
 
-    /** User converts BDT to reward points instantly */
     @Transactional
     public void topupPoints(UUID userId, TransactionDto.TopupPointsRequest req) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
@@ -150,19 +139,17 @@ public void approveTransaction(UUID txnId, UUID adminId) {
         user.setRewardPoints(user.getRewardPoints() + req.points());
         userRepo.save(user);
 
-        Transaction txn = Transaction.builder()
-                .user(user)
-                .type(Transaction.TxnType.topup_points)
-                .amount(BigDecimal.valueOf(req.points()))
-                .currency(Transaction.TxnCurrency.Points)
-                .description("Topped up " + req.points() + " points for ৳" + req.bdtCost())
-                .status(Transaction.TxnStatus.approved)
-                .pointsTopupRate(req.bdtCost())
-                .build();
+        Transaction txn = new Transaction();
+        txn.setUser(user);
+        txn.setType(Transaction.TxnType.topup_points);
+        txn.setAmount(BigDecimal.valueOf(req.points()));
+        txn.setCurrency(Transaction.TxnCurrency.Points);
+        txn.setDescription("Topped up " + req.points() + " points for " + req.bdtCost());
+        txn.setStatus(Transaction.TxnStatus.approved);
+        txn.setPointsTopupRate(req.bdtCost());
         txnRepo.save(txn);
     }
 
-    /** User requests a withdrawal */
     @Transactional
     public void requestWithdrawal(UUID userId, WalletDto.WithdrawRequest req) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
@@ -173,23 +160,23 @@ public void approveTransaction(UUID txnId, UUID adminId) {
         try { pm = Transaction.PaymentMethod.valueOf(req.method()); }
         catch (Exception e) { throw new AppException("Invalid method"); }
 
-        // Deduct balance immediately (refunded if rejected)
         user.setWalletBalance(user.getWalletBalance().subtract(req.amount()));
         userRepo.save(user);
 
-        Withdrawal w = Withdrawal.builder()
-                .user(user).amount(req.amount()).method(pm)
-                .accountNumber(req.accountNumber()).status(Withdrawal.WithdrawalStatus.pending)
-                .build();
+        Withdrawal w = new Withdrawal();
+        w.setUser(user);
+        w.setAmount(req.amount());
+        w.setMethod(pm);
+        w.setAccountNumber(req.accountNumber());
+        w.setStatus(Withdrawal.WithdrawalStatus.pending);
         withdrawalRepo.save(w);
 
         logService.log(Log.LogType.transaction, "WITHDRAWAL_REQUESTED",
-                "User requested withdrawal of ৳" + req.amount() + " via " + pm.name(),
+                "User requested withdrawal of " + req.amount() + " via " + pm.name(),
                 userId, user.getName(), null, null,
                 Map.of("amount", req.amount().toString(), "method", pm.name()));
     }
 
-    /** Admin approves withdrawal */
     @Transactional
     public void approveWithdrawal(UUID withdrawalId, UUID adminId) {
         Withdrawal w = withdrawalRepo.findById(withdrawalId)
@@ -202,11 +189,10 @@ public void approveTransaction(UUID txnId, UUID adminId) {
                 "Withdrawal Approved",
                 "Your BDT " + w.getAmount() + " withdrawal via " + w.getMethod().name() + " has been processed.", null);
         logService.log(Log.LogType.admin_action, "WITHDRAWAL_APPROVED",
-                "Admin approved withdrawal of ৳" + w.getAmount(), adminId, null,
+                "Admin approved withdrawal of " + w.getAmount(), adminId, null,
                 w.getUser().getId(), w.getUser().getName(), null);
     }
 
-    /** Admin rejects withdrawal — refunds the user */
     @Transactional
     public void rejectWithdrawal(UUID withdrawalId, UUID adminId) {
         Withdrawal w = withdrawalRepo.findById(withdrawalId)
@@ -223,7 +209,6 @@ public void approveTransaction(UUID txnId, UUID adminId) {
                 "Your BDT " + w.getAmount() + " withdrawal was rejected. Amount refunded.", null);
     }
 
-    /** User cancels their own pending withdrawal */
     @Transactional
     public void cancelWithdrawal(UUID withdrawalId, UUID userId) {
         Withdrawal w = withdrawalRepo.findById(withdrawalId)
@@ -238,22 +223,23 @@ public void approveTransaction(UUID txnId, UUID adminId) {
         userRepo.save(user);
     }
 
-@Transactional(readOnly = true)
-public List<TransactionDto.Response> getMyTransactions(UUID userId) {
-    User user = userRepo.findById(userId).orElseThrow();
-    return txnRepo.findByUserOrderByCreatedAtDesc(user)
-            .stream().map(TransactionDto.Response::from).toList();
-}
+    @Transactional(readOnly = true)
+    public List<TransactionDto.Response> getMyTransactions(UUID userId) {
+        User user = userRepo.findById(userId).orElseThrow();
+        return txnRepo.findByUserOrderByCreatedAtDesc(user)
+                .stream().map(TransactionDto.Response::from).toList();
+    }
+
     public List<Withdrawal> getMyWithdrawals(UUID userId) {
         User user = userRepo.findById(userId).orElseThrow();
         return withdrawalRepo.findByUserOrderByCreatedAtDesc(user);
     }
 
-  @Transactional(readOnly = true)
-public List<TransactionDto.Response> getAllPendingTransactions() {
-    return txnRepo.findByStatusOrderByCreatedAtDesc(Transaction.TxnStatus.pending)
-            .stream().map(TransactionDto.Response::from).toList();
-}
+    @Transactional(readOnly = true)
+    public List<TransactionDto.Response> getAllPendingTransactions() {
+        return txnRepo.findByStatusOrderByCreatedAtDesc(Transaction.TxnStatus.pending)
+                .stream().map(TransactionDto.Response::from).toList();
+    }
 
     public List<Withdrawal> getAllPendingWithdrawals() {
         return withdrawalRepo.findByStatusOrderByCreatedAtDesc(Withdrawal.WithdrawalStatus.pending);
