@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -42,33 +41,31 @@ public class ResourceService {
     public ResourceDto.Response upload(UUID userId, ResourceDto.CreateRequest req, String fileUrl) {
         User uploader = userRepo.findById(userId)
                 .orElseThrow(() -> new AppException("User not found"));
-
         if (!Boolean.TRUE.equals(uploader.getIsVerified())) {
             throw new AppException("Only verified users can upload resources");
         }
         if (!Boolean.TRUE.equals(uploader.getCanUpload())) {
             throw new AppException("Upload permission revoked");
         }
-
         Resource.PriceType priceType;
         try { priceType = Resource.PriceType.valueOf(req.priceType()); }
         catch (Exception e) { throw new AppException("Invalid priceType"); }
 
-        Resource resource = Resource.builder()
-                .title(req.title())
-                .description(req.description())
-                .category(req.category())
-                .price(req.price())
-                .priceType(priceType)
-                .uploadedBy(uploader)
-                .uploaderName(uploader.getName())
-                .status(Resource.ResourceStatus.pending)
-                .fileUrl(fileUrl)
-                .department(req.department())
-                .course(req.course())
-                .semester(req.semester())
-                .build();
-
+        Resource resource = new Resource();
+        resource.setTitle(req.title());
+        resource.setDescription(req.description());
+        resource.setCategory(req.category());
+        resource.setPrice(req.price());
+        resource.setPriceType(priceType);
+        resource.setUploadedBy(uploader);
+        resource.setUploaderName(uploader.getName());
+        resource.setStatus(Resource.ResourceStatus.pending);
+        resource.setFileUrl(fileUrl);
+        resource.setDepartment(req.department());
+        resource.setCourse(req.course());
+        resource.setSemester(req.semester());
+        resource.setDownloads(0);
+        resource.setRating(BigDecimal.ZERO);
         resourceRepo.save(resource);
         logService.log(Log.LogType.user_action, "UPLOAD", "User uploaded resource: " + req.title(),
                 userId, uploader.getName(), null, null, null);
@@ -81,8 +78,6 @@ public class ResourceService {
                 .orElseThrow(() -> new AppException("Resource not found"));
         r.setStatus(approve ? Resource.ResourceStatus.approved : Resource.ResourceStatus.rejected);
         resourceRepo.save(r);
-
-        // Reward uploader on approval
         if (approve) {
             User uploader = r.getUploadedBy();
             uploader.setRewardPoints(uploader.getRewardPoints() + 100);
