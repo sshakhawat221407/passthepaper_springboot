@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "purchases")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Purchase {
 
     @Id
@@ -40,9 +40,28 @@ public class Purchase {
     private String feedback;
 
     @Column
-    private Short rating; // 1-5
+    private Short rating;
 
     @CreationTimestamp
     @Column(name = "purchased_at", nullable = false, updatable = false)
     private Instant purchasedAt;
+
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public Resource getResource() { return resource; }
+    public BigDecimal getPrice() { return price; }
+    public Resource.PriceType getPriceType() { return priceType; }
+    public Transaction.PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public String getFeedback() { return feedback; }
+    public Short getRating() { return rating; }
+    public Instant getPurchasedAt() { return purchasedAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setResource(Resource resource) { this.resource = resource; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public void setPriceType(Resource.PriceType priceType) { this.priceType = priceType; }
+    public void setPaymentMethod(Transaction.PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
+    public void setRating(Short rating) { this.rating = rating; }
 }
