@@ -1,8 +1,6 @@
 package com.passthepaper.repository;
 
 import com.passthepaper.entity.*;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,6 +14,6 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
     List<Feedback> findByUserOrderByCreatedAtDesc(User user);
     List<Feedback> findByItemOrderByCreatedAtDesc(Resource item);
 
-    @Query("SELECT f FROM Feedback f ORDER BY f.createdAt DESC")
-    Page<Feedback> findAllPaged(Pageable pageable);
+    @Query("SELECT f FROM Feedback f JOIN FETCH f.user LEFT JOIN FETCH f.item ORDER BY f.createdAt DESC")
+    List<Feedback> findAllForAdmin();
 }
