@@ -56,20 +56,26 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-   @Bean
+// AFTER:
+@Bean
 public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
+    // Use setAllowedOriginPatterns (supports credentials + wildcard sub-domains).
+    // Do NOT mix "*" with allowCredentials=true — Spring Boot 3.2.x rejects it.
     config.setAllowedOriginPatterns(List.of(
-    "https://passthepaper.vercel.app",
-    "https://*.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "www.passthepaper.pro.bd",
-    "https://passthepaper-springboot.onrender.com",
-    "*"
-));;  // ← change this line
+        "https://passthepaper.vercel.app",
+        "https://*.vercel.app",
+        "https://www.passthepaper.pro.bd",
+        "http://www.passthepaper.pro.bd",
+        "https://passthepaper.pro.bd",
+        "https://passthepaper-springboot.onrender.com",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:*"
+    ));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setAllowedHeaders(List.of("*"));
+    config.setExposedHeaders(List.of("Authorization", "Content-Type"));
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
 
