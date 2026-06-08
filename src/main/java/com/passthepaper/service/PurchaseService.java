@@ -124,7 +124,7 @@ public class PurchaseService {
             if (res.getMaxSales() != null && res.getDownloads() >= res.getMaxSales()) {
                 notificationService.send(res.getUploadedBy(), Notification.NotificationType.sale,
                         "Resource Sold Out",
-                        "Your resource "" + res.getTitle() + "" has reached its maximum sales limit and is now hidden from the store.",
+                        "Your resource '" + res.getTitle() + "' has reached its maximum sales limit and is now hidden from the store.",
                         null);
             }
 
