@@ -435,40 +435,56 @@ class FeedbackController {
         return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
     }
 
-    // GET /feedbacks — returns current user's feedbacks
+    // GET /feedbacks — returns current user's feedbacks as safe DTOs
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Feedback>>> mine(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> mine(
             @AuthenticationPrincipal UserDetails ud) {
         User user = userRepo.findById(currentUserId(ud)).orElseThrow();
-        return ResponseEntity.ok(ApiResponse.ok(feedbackRepo.findByUserOrderByCreatedAtDesc(user)));
+        List<Map<String, Object>> result = feedbackRepo.findByUserOrderByCreatedAtDesc(user)
+            .stream().map(f -> {
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("id", f.getId());
+                m.put("userId", f.getUser().getId());
+                m.put("type", f.getType().name());
+                m.put("rating", f.getRating());
+                m.put("comment", f.getComment());
+                m.put("itemId", f.getItem() != null ? f.getItem().getId() : null);
+                m.put("itemTitle", f.getItemTitle());
+                m.put("createdAt", f.getCreatedAt());
+                m.put("updatedAt", f.getUpdatedAt());
+                return m;
+            }).collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     // POST /feedbacks — create system or item feedback
     @PostMapping
     public ResponseEntity<ApiResponse<String>> create(
             @AuthenticationPrincipal UserDetails ud,
-            @Valid @RequestBody FeedbackDto.CreateRequest req) {
+            @RequestBody Map<String, Object> body) {
         User user = userRepo.findById(currentUserId(ud)).orElseThrow();
         Feedback.FeedbackType type;
         try {
-            type = Feedback.FeedbackType.valueOf(req.type());
+            type = Feedback.FeedbackType.valueOf((String) body.get("type"));
         } catch (Exception e) {
             type = Feedback.FeedbackType.system;
         }
-         Feedback fb = new Feedback();
+        Feedback fb = new Feedback();
         fb.setUser(user);
         fb.setType(type);
-        fb.setRating(req.rating());
-        fb.setComment(req.comment());
-        fb.setItemTitle(req.itemTitle());
-        if (req.itemId() != null) {
-            resourceRepo.findById(req.itemId()).ifPresent(fb::setItem);
+        fb.setRating(((Number) body.get("rating")).shortValue());
+        fb.setComment((String) body.get("comment"));
+        fb.setItemTitle((String) body.get("itemTitle"));
+        if (body.get("itemId") != null) {
+            try {
+                UUID itemId = UUID.fromString(body.get("itemId").toString());
+                resourceRepo.findById(itemId).ifPresent(fb::setItem);
+            } catch (Exception ignored) {}
         }
         feedbackRepo.save(fb);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Feedback submitted"));
     }
 }
-
 // ─────────────────────────────────────────────────────
 //  APPEAL CONTROLLER  /appeals/**
 // ─────────────────────────────────────────────────────
