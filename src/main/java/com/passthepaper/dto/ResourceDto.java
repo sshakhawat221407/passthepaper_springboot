@@ -18,7 +18,8 @@ public class ResourceDto {
         @NotNull String priceType,
         String department,
         String course,
-        String semester
+        String semester,
+        Integer maxSales
     ) {}
 
     @Builder
@@ -38,7 +39,9 @@ public class ResourceDto {
         String department,
         String course,
         String semester,
-        Instant createdAt
+        Instant createdAt,
+        Integer maxSales,
+        boolean soldOut
     ) {
         public static Response from(Resource r) {
             return new Response(
@@ -47,7 +50,7 @@ public class ResourceDto {
                 r.getUploadedBy().getId(), r.getUploaderName(),
                 r.getDownloads(), r.getRating(), r.getStatus().name(),
                 r.getFileUrl(), r.getDepartment(), r.getCourse(), r.getSemester(),
-                r.getCreatedAt()
+                r.getCreatedAt(), r.getMaxSales(), r.isSoldOut()
             );
         }
     }
