@@ -217,18 +217,18 @@ class CartController {
     public ResponseEntity<ApiResponse<List<PurchaseDto.Response>>> myPurchases(
             @AuthenticationPrincipal UserDetails ud) {
         List<Purchase> purchases = purchaseService.getMyPurchases(currentUserId(ud));
-        List<PurchaseDto.Response> dtos = purchases.stream().map(p ->
-                PurchaseDto.Response.builder()
-                        .id(p.getId())
-                        .resourceId(p.getResource().getId())
-                        .resourceTitle(p.getResource().getTitle())
-                        .price(p.getPrice())
-                        .priceType(p.getPriceType().name())
-                        .paymentMethod(p.getPaymentMethod() != null ? p.getPaymentMethod().name() : null)
-                        .feedback(p.getFeedback())
-                        .rating(p.getRating())
-                        .purchasedAt(p.getPurchasedAt())
-                        .build()
+         List<PurchaseDto.Response> dtos = purchases.stream().map(p ->
+                new PurchaseDto.Response(
+                        p.getId(),
+                        p.getResource().getId(),
+                        p.getResource().getTitle(),
+                        p.getPrice(),
+                        p.getPriceType().name(),
+                        p.getPaymentMethod() != null ? p.getPaymentMethod().name() : null,
+                        p.getFeedback(),
+                        p.getRating(),
+                        p.getPurchasedAt()
+                )
         ).toList();
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
@@ -406,16 +406,16 @@ class FeedbackController {
         } catch (Exception e) {
             type = Feedback.FeedbackType.system;
         }
-        Feedback.FeedbackBuilder fb = Feedback.builder()
-                .user(user)
-                .type(type)
-                .rating(req.rating())
-                .comment(req.comment())
-                .itemTitle(req.itemTitle());
+         Feedback fb = new Feedback();
+        fb.setUser(user);
+        fb.setType(type);
+        fb.setRating(req.rating());
+        fb.setComment(req.comment());
+        fb.setItemTitle(req.itemTitle());
         if (req.itemId() != null) {
-            resourceRepo.findById(req.itemId()).ifPresent(fb::item);
+            resourceRepo.findById(req.itemId()).ifPresent(fb::setItem);
         }
-        Feedback saved = feedbackRepo.save(fb.build());
+        Feedback saved = feedbackRepo.save(fb);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
     }
 }
