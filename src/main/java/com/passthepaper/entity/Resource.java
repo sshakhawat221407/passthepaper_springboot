@@ -68,6 +68,10 @@ public class Resource {
     @Column(length = 100)
     private String semester;
 
+    /** null = unlimited; when downloads >= maxSales the resource is sold out */
+    @Column(name = "max_sales")
+    private Integer maxSales;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -94,6 +98,8 @@ public class Resource {
     public String getDepartment() { return department; }
     public String getCourse() { return course; }
     public String getSemester() { return semester; }
+    public Integer getMaxSales() { return maxSales; }
+    public boolean isSoldOut() { return maxSales != null && downloads >= maxSales; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 
@@ -112,4 +118,5 @@ public class Resource {
     public void setDepartment(String department) { this.department = department; }
     public void setCourse(String course) { this.course = course; }
     public void setSemester(String semester) { this.semester = semester; }
+    public void setMaxSales(Integer maxSales) { this.maxSales = maxSales; }
 }
