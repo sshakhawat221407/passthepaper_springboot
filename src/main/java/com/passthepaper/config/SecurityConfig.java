@@ -59,7 +59,14 @@ public class SecurityConfig {
    @Bean
 public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOriginPatterns(List.of("*"));  // ← change this line
+    config.setAllowedOriginPatterns(List.of(
+    "https://passthepaper.vercel.app",
+    "https://*.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "www.passthepaper.pro.bd",
+    "https://passthepaper-springboot.onrender.com"
+));;  // ← change this line
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     config.setAllowedHeaders(List.of("*"));
     config.setAllowCredentials(true);
