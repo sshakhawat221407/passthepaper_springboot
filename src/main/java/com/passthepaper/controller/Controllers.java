@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.UrlResource;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -114,6 +115,8 @@ class ResourceController {
 
     private final ResourceService resourceService;
     private final UserRepository userRepo;
+    private final ResourceRepository resourceRepo;
+    private final PurchaseRepository purchaseRepo;
     private static final String UPLOAD_DIR = "uploads/";
 
     private UUID currentUserId(UserDetails ud) {
@@ -161,6 +164,52 @@ class ResourceController {
     public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> myUploads(
             @AuthenticationPrincipal UserDetails ud) {
         return ResponseEntity.ok(ApiResponse.ok(resourceService.getMyUploads(currentUserId(ud))));
+    }
+
+    // Serves an uploaded file — admin always allowed; regular users must have
+    // purchased or uploaded the resource.
+    @GetMapping("/{id}/download")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<org.springframework.core.io.Resource> download(
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID id) throws IOException {
+
+        UUID userId = currentUserId(ud);
+        User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
+
+        Resource resource = resourceRepo.findById(id)
+                .orElseThrow(() -> new AppException("Resource not found"));
+
+        if (!Boolean.TRUE.equals(user.getIsAdmin())) {
+            boolean isUploader  = resource.getUploadedBy().getId().equals(userId);
+            boolean hasPurchased = purchaseRepo.existsByUserAndResource(user, resource);
+            if (!isUploader && !hasPurchased) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        String fileUrl  = resource.getFileUrl(); // stored as "/files/uuid_filename"
+        String filename = fileUrl.startsWith("/files/") ? fileUrl.substring(7) : fileUrl;
+        Path   filePath = Paths.get(UPLOAD_DIR).resolve(filename).normalize();
+
+        if (!Files.exists(filePath)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        UrlResource fileResource = new UrlResource(filePath.toUri());
+
+        String contentType = Files.probeContentType(filePath);
+        if (contentType == null) contentType = "application/octet-stream";
+
+        // Strip the UUID prefix from the filename so it downloads with its original name
+        String displayName = filename.contains("_")
+                ? filename.substring(filename.indexOf("_") + 1)
+                : filename;
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + displayName + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(fileResource);
     }
 }
 
