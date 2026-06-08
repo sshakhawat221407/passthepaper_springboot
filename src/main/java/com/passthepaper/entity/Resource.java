@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "resources")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Resource {
 
     @Id
@@ -78,4 +78,38 @@ public class Resource {
 
     public enum PriceType { money, points }
     public enum ResourceStatus { pending, approved, rejected }
+
+    public UUID getId() { return id; }
+    public String getTitle() { return title; }
+    public String getDescription() { return description; }
+    public String getCategory() { return category; }
+    public BigDecimal getPrice() { return price; }
+    public PriceType getPriceType() { return priceType; }
+    public User getUploadedBy() { return uploadedBy; }
+    public String getUploaderName() { return uploaderName; }
+    public Integer getDownloads() { return downloads; }
+    public BigDecimal getRating() { return rating; }
+    public ResourceStatus getStatus() { return status; }
+    public String getFileUrl() { return fileUrl; }
+    public String getDepartment() { return department; }
+    public String getCourse() { return course; }
+    public String getSemester() { return semester; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setTitle(String title) { this.title = title; }
+    public void setDescription(String description) { this.description = description; }
+    public void setCategory(String category) { this.category = category; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public void setPriceType(PriceType priceType) { this.priceType = priceType; }
+    public void setUploadedBy(User uploadedBy) { this.uploadedBy = uploadedBy; }
+    public void setUploaderName(String uploaderName) { this.uploaderName = uploaderName; }
+    public void setDownloads(Integer downloads) { this.downloads = downloads; }
+    public void setRating(BigDecimal rating) { this.rating = rating; }
+    public void setStatus(ResourceStatus status) { this.status = status; }
+    public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public void setDepartment(String department) { this.department = department; }
+    public void setCourse(String course) { this.course = course; }
+    public void setSemester(String semester) { this.semester = semester; }
 }
