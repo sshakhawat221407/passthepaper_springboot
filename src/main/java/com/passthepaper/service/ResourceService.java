@@ -64,6 +64,7 @@ public class ResourceService {
         resource.setDepartment(req.department());
         resource.setCourse(req.course());
         resource.setSemester(req.semester());
+        resource.setMaxSales(req.maxSales());   // null = unlimited copies
         resource.setDownloads(0);
         resource.setRating(BigDecimal.ZERO);
         resourceRepo.save(resource);
@@ -78,11 +79,9 @@ public class ResourceService {
                 .orElseThrow(() -> new AppException("Resource not found"));
         r.setStatus(approve ? Resource.ResourceStatus.approved : Resource.ResourceStatus.rejected);
         resourceRepo.save(r);
-        if (approve) {
-            User uploader = r.getUploadedBy();
-            uploader.setRewardPoints(uploader.getRewardPoints() + 100);
-            userRepo.save(uploader);
-        }
+        // Points are NOT awarded on approval.
+        // When priceType == points, the seller earns points each time a buyer
+        // purchases the resource (handled in PurchaseService.checkout).
         logService.log(Log.LogType.admin_action,
                 approve ? "RESOURCE_APPROVED" : "RESOURCE_REJECTED",
                 (approve ? "Approved" : "Rejected") + " resource: " + r.getTitle(),
@@ -107,6 +106,12 @@ public class ResourceService {
 
     public List<ResourceDto.Response> getPendingResources() {
         return resourceRepo.findByStatusOrderByCreatedAtDesc(Resource.ResourceStatus.pending)
+                .stream().map(ResourceDto.Response::from).collect(Collectors.toList());
+    }
+
+    /** Admin: every resource ever uploaded — pending, approved, rejected, sold-out */
+    public List<ResourceDto.Response> getAllResources() {
+        return resourceRepo.findAllByOrderByCreatedAtDesc()
                 .stream().map(ResourceDto.Response::from).collect(Collectors.toList());
     }
 }
