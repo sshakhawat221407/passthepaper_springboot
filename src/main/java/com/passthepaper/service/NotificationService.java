@@ -1,16 +1,12 @@
 package com.passthepaper.service;
 
-import com.passthepaper.dto.AppealDto;
 import com.passthepaper.entity.*;
 import com.passthepaper.exception.AppException;
 import com.passthepaper.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -21,9 +17,14 @@ public class NotificationService {
     private final UserRepository userRepo;
 
     public void send(User user, Notification.NotificationType type, String title, String message, UUID relatedId) {
-        notifRepo.save(Notification.builder()
-                .user(user).type(type).title(title).message(message)
-                .isRead(false).relatedId(relatedId).build());
+        Notification n = new Notification();
+        n.setUser(user);
+        n.setType(type);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setIsRead(false);
+        n.setRelatedId(relatedId);
+        notifRepo.save(n);
     }
 
     public List<Notification> getForUser(UUID userId) {
