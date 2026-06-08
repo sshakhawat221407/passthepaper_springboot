@@ -542,6 +542,12 @@ class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(resourceService.getPendingResources()));
     }
 
+    /** Admin: all resources regardless of status or sold-out — visible in admin portal */
+    @GetMapping("/resources/all")
+    public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> allResources() {
+        return ResponseEntity.ok(ApiResponse.ok(resourceService.getAllResources()));
+    }
+
     // FIX: POST /admin/resources/{resourceId}/approve (frontend expects POST)
     @PostMapping("/resources/{resourceId}/approve")
     public ResponseEntity<ApiResponse<String>> approveResource(
