@@ -525,6 +525,8 @@ class AdminController {
     private final AppealService appealService;
     private final LogService logService;
     private final UserRepository userRepo;
+    // ADD to AdminController's injected fields (with the other final fields):
+    private final com.passthepaper.repository.FeedbackRepository feedbackRepo;
 
     private UUID currentUserId(UserDetails ud) {
         return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
@@ -694,5 +696,17 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "200") int size) {
         return ResponseEntity.ok(ApiResponse.ok(logService.getLogs(page, size)));
+    }
+
+    // ─── Feedbacks ────────────────────────────────────────────
+    @GetMapping("/feedbacks")
+    public ResponseEntity<ApiResponse<List<Feedback>>> allFeedbacks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        org.springframework.data.domain.Pageable pageable =
+            org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by("createdAt").descending());
+        List<Feedback> list = feedbackRepo.findAllPaged(pageable).getContent();
+        return ResponseEntity.ok(ApiResponse.ok(list));
     }
 }
