@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "notifications")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class Notification {
 
     @Id
@@ -43,4 +43,21 @@ public class Notification {
     private Instant createdAt;
 
     public enum NotificationType { purchase, sale, system, feedback }
+
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public NotificationType getType() { return type; }
+    public String getTitle() { return title; }
+    public String getMessage() { return message; }
+    public Boolean getIsRead() { return isRead; }
+    public UUID getRelatedId() { return relatedId; }
+    public Instant getCreatedAt() { return createdAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setType(NotificationType type) { this.type = type; }
+    public void setTitle(String title) { this.title = title; }
+    public void setMessage(String message) { this.message = message; }
+    public void setIsRead(Boolean isRead) { this.isRead = isRead; }
+    public void setRelatedId(UUID relatedId) { this.relatedId = relatedId; }
 }
