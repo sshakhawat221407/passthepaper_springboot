@@ -21,11 +21,14 @@ public class ResourceService {
     private final UserRepository userRepo;
     private final LogService logService;
 
+   // AFTER:
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ResourceDto.Response> getFeatured() {
         return resourceRepo.findFeatured(PageRequest.of(0, 6))
                 .stream().map(ResourceDto.Response::from).collect(Collectors.toList());
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ResourceDto.Response> browse(String category, String search, int page, int size) {
         return resourceRepo.search(category, search, PageRequest.of(page, size))
                 .stream().map(ResourceDto.Response::from).collect(Collectors.toList());
