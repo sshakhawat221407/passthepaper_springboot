@@ -4,15 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-// ─────────────────── CartItem ───────────────────
 @Entity
 @Table(name = "cart_items",
        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "resource_id"}))
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class CartItem {
 
     @Id
@@ -30,4 +28,13 @@ public class CartItem {
     @CreationTimestamp
     @Column(name = "added_at", nullable = false, updatable = false)
     private Instant addedAt;
+
+    public UUID getId() { return id; }
+    public User getUser() { return user; }
+    public Resource getResource() { return resource; }
+    public Instant getAddedAt() { return addedAt; }
+
+    public void setId(UUID id) { this.id = id; }
+    public void setUser(User user) { this.user = user; }
+    public void setResource(Resource resource) { this.resource = resource; }
 }
