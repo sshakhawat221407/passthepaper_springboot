@@ -731,26 +731,60 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
     }
 
     // ─── Feedbacks ────────────────────────────────────────────
-    @GetMapping("/feedbacks")
-public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks(
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "100") int size) {
-    org.springframework.data.domain.Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(page, size,
-            org.springframework.data.domain.Sort.by("createdAt").descending());
-    List<Map<String, Object>> result = feedbackRepo.findAllPaged(pageable).getContent()
-        .stream().map(f -> {
+  @GetMapping("/feedbacks")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "200") int size) {
+
+        org.springframework.data.domain.Pageable pageable =
+            org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        List<Feedback> all = feedbackRepo.findAllPaged(pageable).getContent();
+
+        // ── Deduplicate: keep only the LATEST feedback per user (system)
+        //                and latest per user+item combo (item) ───────────
+        java.util.Map<String, Feedback> deduped = new java.util.LinkedHashMap<>();
+        for (Feedback f : all) {
+            String key = f.getType() == Feedback.FeedbackType.system
+                ? "sys-" + f.getUser().getId()
+                : "item-" + f.getUser().getId() + "-" + (f.getItem() != null ? f.getItem().getId() : "null");
+            // List is already sorted newest-first so first entry wins
+            deduped.putIfAbsent(key, f);
+        }
+
+        List<Map<String, Object>> result = deduped.values().stream().map(f -> {
             Map<String, Object> m = new java.util.LinkedHashMap<>();
-            m.put("id", f.getId());
-            m.put("userId", f.getUser().getId());
-            m.put("type", f.getType().name());
-            m.put("rating", f.getRating());
-            m.put("comment", f.getComment());
-            m.put("itemId", f.getItem() != null ? f.getItem().getId() : null);
-            m.put("itemTitle", f.getItemTitle());
+            m.put("id",        f.getId());
+            // ── Buyer info ─────────────────────────────────────────────
+            m.put("userId",    f.getUser().getId());
+            m.put("userName",  f.getUser().getName());
+            m.put("userEmail", f.getUser().getEmail());
+            // ── Feedback data ──────────────────────────────────────────
+            m.put("type",      f.getType().name());
+            m.put("rating",    f.getRating());
+            m.put("comment",   f.getComment());
             m.put("createdAt", f.getCreatedAt());
+            // ── Item + seller info (item feedbacks only) ───────────────
+            if (f.getItem() != null) {
+                com.passthepaper.entity.Resource item = f.getItem();
+                m.put("itemId",       item.getId());
+                m.put("itemTitle",    f.getItemTitle() != null ? f.getItemTitle() : item.getTitle());
+                m.put("itemCategory", item.getCategory());
+                m.put("itemPrice",    item.getPrice());
+                m.put("itemPriceType",item.getPriceType() != null ? item.getPriceType().name() : null);
+                if (item.getUploadedBy() != null) {
+                    m.put("sellerId",   item.getUploadedBy().getId());
+                    m.put("sellerName", item.getUploadedBy().getName());
+                }
+            } else {
+                m.put("itemId", null);
+                m.put("itemTitle", f.getItemTitle());
+            }
             return m;
         }).collect(java.util.stream.Collectors.toList());
-    return ResponseEntity.ok(ApiResponse.ok(result));
-}
+
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
 }
