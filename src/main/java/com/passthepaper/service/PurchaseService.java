@@ -24,15 +24,16 @@ public class PurchaseService {
     private final NotificationService notificationService;
     private final LogService logService;
 
-    // ─── Cart ───────────────────────────────────────────
-
     public void addToCart(UUID userId, UUID resourceId) {
         User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
         Resource res = resourceRepo.findById(resourceId).orElseThrow(() -> new AppException("Resource not found"));
         if (res.getStatus() != Resource.ResourceStatus.approved) throw new AppException("Resource not available");
         if (purchaseRepo.existsByUserAndResource(user, res)) throw new AppException("Already purchased");
         if (!cartRepo.existsByUserAndResource(user, res)) {
-            cartRepo.save(CartItem.builder().user(user).resource(res).build());
+            CartItem item = new CartItem();
+            item.setUser(user);
+            item.setResource(res);
+            cartRepo.save(item);
         }
     }
 
@@ -49,89 +50,90 @@ public class PurchaseService {
                 .collect(Collectors.toList());
     }
 
-    // ─── Checkout ───────────────────────────────────────
+    @Transactional
+    public void checkout(UUID userId, PurchaseDto.CheckoutRequest req) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
+        if (!Boolean.TRUE.equals(user.getCanPurchase())) throw new AppException("Purchase permission revoked");
 
-@Transactional
-public void checkout(UUID userId, PurchaseDto.CheckoutRequest req) {
-    User user = userRepo.findById(userId).orElseThrow(() -> new AppException("User not found"));
-    if (!Boolean.TRUE.equals(user.getCanPurchase())) throw new AppException("Purchase permission revoked");
+        Transaction.PaymentMethod pm;
+        try { pm = Transaction.PaymentMethod.valueOf(req.paymentMethod()); }
+        catch (Exception e) { throw new AppException("Invalid payment method"); }
 
-    Transaction.PaymentMethod pm;
-    try { pm = Transaction.PaymentMethod.valueOf(req.paymentMethod()); }
-    catch (Exception e) { throw new AppException("Invalid payment method"); }
+        List<Resource> resources = req.resourceIds().stream()
+                .map(id -> resourceRepo.findById(id).orElseThrow(() -> new AppException("Resource not found: " + id)))
+                .collect(Collectors.toList());
 
-    List<Resource> resources = req.resourceIds().stream()
-            .map(id -> resourceRepo.findById(id).orElseThrow(() -> new AppException("Resource not found: " + id)))
-            .collect(Collectors.toList());
+        BigDecimal totalBdt = resources.stream()
+                .filter(r -> r.getPriceType() == Resource.PriceType.money)
+                .map(Resource::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int totalPoints = resources.stream()
+                .filter(r -> r.getPriceType() == Resource.PriceType.points)
+                .mapToInt(r -> r.getPrice().intValue()).sum();
 
-    BigDecimal totalBdt = resources.stream()
-            .filter(r -> r.getPriceType() == Resource.PriceType.money)
-            .map(Resource::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
-    int totalPoints = resources.stream()
-            .filter(r -> r.getPriceType() == Resource.PriceType.points)
-            .mapToInt(r -> r.getPrice().intValue()).sum();
+        if (pm == Transaction.PaymentMethod.Bkash || pm == Transaction.PaymentMethod.Nagad) {
+            String resourceIdsCsv = req.resourceIds().stream()
+                    .map(UUID::toString).collect(Collectors.joining(","));
+            Transaction txn = new Transaction();
+            txn.setUser(user);
+            txn.setType(Transaction.TxnType.purchase);
+            txn.setAmount(totalBdt);
+            txn.setCurrency(Transaction.TxnCurrency.BDT);
+            txn.setDescription("Pending purchase via " + pm.name() + " | resources:" + resourceIdsCsv);
+            txn.setStatus(Transaction.TxnStatus.pending);
+            txn.setPaymentMethod(pm);
+            txn.setPaymentPhone(req.paymentPhone());
+            txn.setTransactionNumber(req.transactionNumber());
+            txnRepo.save(txn);
+            logService.log(Log.LogType.transaction, "PURCHASE_PENDING",
+                    "User " + user.getName() + " submitted " + pm.name() + " payment for "
+                    + resources.size() + " resource(s). TrxID: " + req.transactionNumber(),
+                    user.getId(), user.getName(), null, null,
+                    Map.of("method", pm.name(), "amount", totalBdt.toString(),
+                           "trxId", req.transactionNumber() != null ? req.transactionNumber() : ""));
+            return;
+        }
 
-    // ── Bkash / Nagad: create a single pending transaction, wait for admin approval ──
-    if (pm == Transaction.PaymentMethod.Bkash || pm == Transaction.PaymentMethod.Nagad) {
-        // Store resourceIds as JSON in description so admin approval can create purchases
-        String resourceIdsCsv = req.resourceIds().stream()
-                .map(UUID::toString).collect(java.util.stream.Collectors.joining(","));
-        txnRepo.save(Transaction.builder()
-                .user(user)
-                .type(Transaction.TxnType.purchase)
-                .amount(totalBdt)
-                .currency(Transaction.TxnCurrency.BDT)
-                .description("Pending purchase via " + pm.name() + " | resources:" + resourceIdsCsv)
-                .status(Transaction.TxnStatus.pending)
-                .paymentMethod(pm)
-                .paymentPhone(req.paymentPhone())
-                .transactionNumber(req.transactionNumber())
-                .build());
-        logService.log(Log.LogType.transaction, "PURCHASE_PENDING",
-                "User " + user.getName() + " submitted " + pm.name() + " payment for "
-                + resources.size() + " resource(s). TrxID: " + req.transactionNumber(),
+        if (user.getWalletBalance().compareTo(totalBdt) < 0)
+            throw new AppException("Insufficient wallet balance");
+        if (user.getRewardPoints() < totalPoints)
+            throw new AppException("Insufficient reward points");
+        user.setWalletBalance(user.getWalletBalance().subtract(totalBdt));
+        user.setRewardPoints(user.getRewardPoints() - totalPoints);
+        userRepo.save(user);
+
+        for (Resource res : resources) {
+            Purchase purchase = new Purchase();
+            purchase.setUser(user);
+            purchase.setResource(res);
+            purchase.setPrice(res.getPrice());
+            purchase.setPriceType(res.getPriceType());
+            purchase.setPaymentMethod(pm);
+            purchaseRepo.save(purchase);
+
+            res.setDownloads(res.getDownloads() + 1);
+            resourceRepo.save(res);
+
+            Transaction txn = new Transaction();
+            txn.setUser(user);
+            txn.setType(Transaction.TxnType.purchase);
+            txn.setAmount(res.getPrice());
+            txn.setCurrency(res.getPriceType() == Resource.PriceType.money
+                    ? Transaction.TxnCurrency.BDT : Transaction.TxnCurrency.Points);
+            txn.setDescription("Purchase of " + res.getTitle());
+            txn.setStatus(Transaction.TxnStatus.approved);
+            txn.setPaymentMethod(pm);
+            txnRepo.save(txn);
+
+            notificationService.send(res.getUploadedBy(), Notification.NotificationType.sale,
+                    "New Purchase", user.getName() + " purchased your resource: " + res.getTitle(), null);
+        }
+        req.resourceIds().forEach(rid ->
+                resourceRepo.findById(rid).ifPresent(r -> cartRepo.deleteByUserAndResource(user, r)));
+        logService.log(Log.LogType.transaction, "PURCHASE_COMPLETED",
+                "User " + user.getName() + " purchased " + resources.size() + " resource(s) via Wallet",
                 user.getId(), user.getName(), null, null,
-                Map.of("method", pm.name(), "amount", totalBdt.toString(),
-                       "trxId", req.transactionNumber() != null ? req.transactionNumber() : ""));
-        return; // don't create purchases yet — wait for admin
+                Map.of("resourceCount", String.valueOf(resources.size()), "totalBdt", totalBdt.toString()));
     }
-
-    // ── Wallet: process immediately ──
-    if (user.getWalletBalance().compareTo(totalBdt) < 0)
-        throw new AppException("Insufficient wallet balance");
-    if (user.getRewardPoints() < totalPoints)
-        throw new AppException("Insufficient reward points");
-    user.setWalletBalance(user.getWalletBalance().subtract(totalBdt));
-    user.setRewardPoints(user.getRewardPoints() - totalPoints);
-    userRepo.save(user);
-
-    for (Resource res : resources) {
-        purchaseRepo.save(Purchase.builder()
-                .user(user).resource(res)
-                .price(res.getPrice()).priceType(res.getPriceType())
-                .paymentMethod(pm).build());
-        res.setDownloads(res.getDownloads() + 1);
-        resourceRepo.save(res);
-        txnRepo.save(Transaction.builder()
-                .user(user).type(Transaction.TxnType.purchase)
-                .amount(res.getPrice())
-                .currency(res.getPriceType() == Resource.PriceType.money
-                        ? Transaction.TxnCurrency.BDT : Transaction.TxnCurrency.Points)
-                .description("Purchase of " + res.getTitle())
-                .status(Transaction.TxnStatus.approved)
-                .paymentMethod(pm).build());
-        notificationService.send(res.getUploadedBy(), Notification.NotificationType.sale,
-                "New Purchase", user.getName() + " purchased your resource: " + res.getTitle(), null);
-    }
-    req.resourceIds().forEach(rid ->
-            resourceRepo.findById(rid).ifPresent(r -> cartRepo.deleteByUserAndResource(user, r)));
-    logService.log(Log.LogType.transaction, "PURCHASE_COMPLETED",
-            "User " + user.getName() + " purchased " + resources.size() + " resource(s) via Wallet",
-            user.getId(), user.getName(), null, null,
-            Map.of("resourceCount", resources.size(), "totalBdt", totalBdt.toString()));
-}
-
-    // ─── Ratings ────────────────────────────────────────
 
     @Transactional
     public void submitRating(UUID userId, PurchaseDto.RatingRequest req) {
