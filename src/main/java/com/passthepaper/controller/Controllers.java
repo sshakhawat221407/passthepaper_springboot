@@ -440,6 +440,7 @@ class FeedbackController {
     private final com.passthepaper.repository.FeedbackRepository feedbackRepo;
     private final UserRepository userRepo;
     private final com.passthepaper.repository.ResourceRepository resourceRepo;
+    private final NotificationService notificationService;
 
     private UUID currentUserId(UserDetails ud) {
         return userRepo.findByEmail(ud.getUsername()).orElseThrow().getId();
@@ -467,9 +468,13 @@ class FeedbackController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    // POST /feedbacks — create system or item feedback
+    /**
+     * POST /feedbacks — create system or item feedback.
+     * Returns the created feedback's real UUID so the frontend can edit it later.
+     * For item-type feedback, also sends a notification to the seller.
+     */
     @PostMapping
-    public ResponseEntity<ApiResponse<String>> create(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> create(
             @AuthenticationPrincipal UserDetails ud,
             @RequestBody Map<String, Object> body) {
         User user = userRepo.findById(currentUserId(ud)).orElseThrow();
@@ -485,31 +490,50 @@ class FeedbackController {
         fb.setRating(((Number) body.get("rating")).shortValue());
         fb.setComment((String) body.get("comment"));
         fb.setItemTitle((String) body.get("itemTitle"));
+        Resource item = null;
         if (body.get("itemId") != null) {
             try {
                 UUID itemId = UUID.fromString(body.get("itemId").toString());
-                resourceRepo.findById(itemId).ifPresent(fb::setItem);
+                item = resourceRepo.findById(itemId).orElse(null);
+                if (item != null) fb.setItem(item);
             } catch (Exception ignored) {}
         }
-        feedbackRepo.save(fb);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Feedback submitted"));
+        Feedback saved = feedbackRepo.save(fb);
+
+        // Problem 5 fix: notify the seller when item feedback is submitted
+        if (type == Feedback.FeedbackType.item && item != null && item.getUploadedBy() != null
+                && !item.getUploadedBy().getId().equals(user.getId())) {
+            String msg = user.getName() + " gave your resource \""
+                    + item.getTitle() + "\" a " + fb.getRating() + "-star review: "
+                    + fb.getComment();
+            notificationService.send(item.getUploadedBy(),
+                    Notification.NotificationType.feedback,
+                    "New Feedback on Your Resource", msg, item.getId());
+        }
+
+        // Return the real persisted ID so the frontend can reference it for edits
+        Map<String, Object> resp = new java.util.LinkedHashMap<>();
+        resp.put("id", saved.getId().toString());
+        resp.put("message", "Feedback submitted");
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(resp));
     }
 
+    // PUT /feedbacks/{id} — edit rating/comment; only the owner may update
     @PutMapping("/{id}")
-public ResponseEntity<ApiResponse<String>> update(
-        @AuthenticationPrincipal UserDetails ud,
-        @PathVariable UUID id,
-        @RequestBody Map<String, Object> body) {
-    UUID userId = currentUserId(ud);
-    Feedback fb = feedbackRepo.findById(id)
-            .orElseThrow(() -> new AppException("Feedback not found"));
-    if (!fb.getUser().getId().equals(userId))
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-    fb.setRating(((Number) body.get("rating")).shortValue());
-    fb.setComment((String) body.get("comment"));
-    feedbackRepo.save(fb);
-    return ResponseEntity.ok(ApiResponse.ok("Feedback updated"));
-}
+    public ResponseEntity<ApiResponse<String>> update(
+            @AuthenticationPrincipal UserDetails ud,
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        UUID userId = currentUserId(ud);
+        Feedback fb = feedbackRepo.findById(id)
+                .orElseThrow(() -> new AppException("Feedback not found"));
+        if (!fb.getUser().getId().equals(userId))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        fb.setRating(((Number) body.get("rating")).shortValue());
+        fb.setComment((String) body.get("comment"));
+        feedbackRepo.save(fb);
+        return ResponseEntity.ok(ApiResponse.ok("Feedback updated"));
+    }
 }
 // ─────────────────────────────────────────────────────
 //  APPEAL CONTROLLER  /appeals/**
