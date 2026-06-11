@@ -742,15 +742,9 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
 
     // ─── Feedbacks ────────────────────────────────────────────
   @GetMapping("/feedbacks")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "200") int size) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks() {
 
-        org.springframework.data.domain.Pageable pageable =
-            org.springframework.data.domain.PageRequest.of(page, size,
-                org.springframework.data.domain.Sort.by("createdAt").descending());
-
-        List<Feedback> all = feedbackRepo.findAllPaged(pageable).getContent();
+        List<Feedback> all = feedbackRepo.findAllForAdmin();
 
         // ── Deduplicate: keep only the LATEST feedback per user (system)
         //                and latest per user+item combo (item) ───────────
