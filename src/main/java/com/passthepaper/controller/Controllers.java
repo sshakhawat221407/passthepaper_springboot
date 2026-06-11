@@ -128,6 +128,16 @@ class ResourceController {
         return ResponseEntity.ok(ApiResponse.ok(resourceService.getFeatured()));
     }
 
+    /** Public browse — explicit sub-path avoids Spring Security 6 root-path ambiguity */
+    @GetMapping("/browse")
+    public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> browsePath(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(resourceService.browse(category, search, page, size)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<ResourceDto.Response>>> browse(
             @RequestParam(required = false) String category,
@@ -732,9 +742,15 @@ public ResponseEntity<ApiResponse<List<AppealDto.Response>>> pendingAppeals() {
 
     // ─── Feedbacks ────────────────────────────────────────────
   @GetMapping("/feedbacks")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> allFeedbacks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "200") int size) {
 
-        List<Feedback> all = feedbackRepo.findAllForAdmin();
+        org.springframework.data.domain.Pageable pageable =
+            org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        List<Feedback> all = feedbackRepo.findAllPaged(pageable).getContent();
 
         // ── Deduplicate: keep only the LATEST feedback per user (system)
         //                and latest per user+item combo (item) ───────────
